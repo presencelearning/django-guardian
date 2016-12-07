@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
-import mock
 import unittest
+
+from unittest import mock
 
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import Group
@@ -11,11 +12,12 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 import guardian
+
 from guardian.backends import ObjectPermissionBackend
+from guardian.compat import basestring
 from guardian.compat import get_user_model
 from guardian.compat import get_user_model_path
 from guardian.compat import get_user_permission_codename
-from guardian.compat import basestring
 from guardian.compat import unicode
 from guardian.exceptions import GuardianError
 from guardian.exceptions import NotUserNorGroup
