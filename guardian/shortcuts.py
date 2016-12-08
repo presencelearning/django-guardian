@@ -3,18 +3,64 @@ Convenient shortcuts to manage or check object permissions.
 """
 from __future__ import unicode_literals
 from django.apps import apps
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count
+from django.db.models import Q
+from django.db.models import QuerySet
 from django.shortcuts import _get_queryset
-from guardian.compat import basestring, get_user_model
+from guardian.compat import basestring
+from guardian.compat import get_user_model
 from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
-from guardian.exceptions import MixedContentTypeError, WrongAppError
-from guardian.utils import get_anonymous_user, get_group_obj_perms_model, get_identity, get_user_obj_perms_model
+from guardian.exceptions import MixedContentTypeError
+from guardian.exceptions import WrongAppError
+from guardian.utils import get_anonymous_user
+from guardian.utils import get_group_obj_perms_model
+from guardian.utils import get_identity
+from guardian.utils import get_user_obj_perms_model
 from itertools import groupby
 
 import warnings
+
+
+def to_permission(perm):
+    if not isinstance(perm, Permission):
+        try:
+            app_label, codename = perm.split('.', 1)
+        except ValueError:
+            raise ValueError("For global permissions, first argument must be in"
+                             " format: 'app_label.codename' (is %r)" % perm)
+        perm = Permission.objects.get(content_type__app_label=app_label,
+                                      codename=codename)
+    return perm
+
+
+def assign_perm_from_user_group_object(perm, user_group_object):
+    ''' Assigns permission to the user and content_object in the
+        UserGroupObject.
+    '''
+    perm = to_permission(perm)
+    model = get_user_obj_perms_model(user_group_object.content_object)
+    return model.objects.assign_perm_from_user_group_object(perm, user_group_object)
+
+def assign_perm_from_user_group_objects(perm, user_group_objects):
+    ''' Assigns permission to the user and content_objects in the
+        iterable UserGroupObject. The content_object can be heterogeneous but the
+        user must be homogeneous.
+    '''
+    perm = to_permission(perm)
+    by_type = {type(o.content_object): [] for o in user_group_objects}
+    for o in user_group_objects:
+        by_type[type(o.content_object)].append(o)
+    assigned_perms = []
+    for t in by_type:
+        user_group_objects_for_type = by_type[t]
+        model = get_user_obj_perms_model(user_group_objects_for_type[0].content_object)
+        perms = model.objects.bulk_assign_perm_from_user_group_objects(perm, user_group_objects_for_type)
+        assigned_perms.extend(perms)
+    return assigned_perms
 
 
 def assign_perm(perm, user_or_group, obj=None):
@@ -69,15 +115,7 @@ def assign_perm(perm, user_or_group, obj=None):
     user, group = get_identity(user_or_group)
     # If obj is None we try to operate on global permissions
     if obj is None:
-        if not isinstance(perm, Permission):
-            try:
-                app_label, codename = perm.split('.', 1)
-            except ValueError:
-                raise ValueError("For global permissions, first argument must be in"
-                                 " format: 'app_label.codename' (is %r)" % perm)
-            perm = Permission.objects.get(content_type__app_label=app_label,
-                                          codename=codename)
-
+        perm = to_permission(perm)
         if user:
             user.user_permissions.add(perm)
             return perm
