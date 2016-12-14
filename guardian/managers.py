@@ -63,7 +63,7 @@ class BaseObjectPermissionManager(models.Manager):
     def assign_perm_from_user_group_object(self, perm, user_group_object):
         return self.assign_perm(perm, user_group_object.user, user_group_object.content_object, user_group_object)
 
-    def bulk_assign_perm(self, perm, user_or_group, queryset):
+    def bulk_assign_perm(self, perm, user_or_group, queryset, user_group_object=None):
         """
         Bulk assigns permissions with given ``perm`` for an objects in ``queryset`` and
         ``user_or_group``.
@@ -81,7 +81,7 @@ class BaseObjectPermissionManager(models.Manager):
         assigned_perms = []
         for instance in queryset:
             if not checker.has_perm(permission.codename, instance):
-                kwargs = self._perm_kwargs(permission, user_or_group, instance, ctype)
+                kwargs = self._perm_kwargs(permission, user_or_group, instance, ctype, user_group_object)
                 assigned_perms.append(self.model(**kwargs))
         self.bulk_create(assigned_perms)
 
@@ -110,11 +110,11 @@ class BaseObjectPermissionManager(models.Manager):
             objects = by_user[user]
 
             checker = ObjectPermissionChecker(user)
-            checker.prefetch_perms(objects)
+            checker.prefetch_perms([o.content_object for o in objects])
 
             for user_group_object in objects:
                 instance = user_group_object.content_object
-                if not checker.has_perm(permission.codename, instance):
+                if not checker.has_perm('{}.{}'.format(permission.content_type.name, permission.codename), instance):
                     kwargs = self._perm_kwargs(permission, user, instance, ctype, user_group_object)
                     assigned_perms.append(self.model(**kwargs))
         self.bulk_create(assigned_perms)

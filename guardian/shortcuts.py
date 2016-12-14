@@ -45,15 +45,16 @@ def assign_perm_from_user_group_object(perm, user_group_object):
     model = get_user_obj_perms_model(user_group_object.content_object)
     return model.objects.assign_perm_from_user_group_object(perm, user_group_object)
 
+
 def assign_perm_from_user_group_objects(perm, user_group_objects):
     ''' Assigns permission to the user and content_objects in the
         iterable UserGroupObject. The content_object can be heterogeneous but the
         user must be homogeneous.
     '''
     perm = to_permission(perm)
-    by_type = {type(o.content_object): [] for o in user_group_objects}
+    by_type = {o.content_type: [] for o in user_group_objects}
     for o in user_group_objects:
-        by_type[type(o.content_object)].append(o)
+        by_type[o.content_type].append(o)
     assigned_perms = []
     for t in by_type:
         user_group_objects_for_type = by_type[t]
@@ -63,7 +64,7 @@ def assign_perm_from_user_group_objects(perm, user_group_objects):
     return assigned_perms
 
 
-def assign_perm(perm, user_or_group, obj=None):
+def assign_perm(perm, user_or_group, obj=None, user_group_object=None):
     """
     Assigns permission to user/group and object pair.
 
@@ -129,18 +130,18 @@ def assign_perm(perm, user_or_group, obj=None):
     if isinstance(obj, QuerySet):
         if user:
             model = get_user_obj_perms_model(obj.model)
-            return model.objects.bulk_assign_perm(perm, user, obj)
+            return model.objects.bulk_assign_perm(perm, user, obj, user_group_object=user_group_object)
         if group:
             model = get_group_obj_perms_model(obj.model)
-            return model.objects.bulk_assign_perm(perm, group, obj)
+            return model.objects.bulk_assign_perm(perm, group, obj, user_group_object=user_group_object)
 
     if user:
         model = get_user_obj_perms_model(obj)
-        return model.objects.assign_perm(perm, user, obj)
+        return model.objects.assign_perm(perm, user, obj, user_group_object=user_group_object)
 
     if group:
         model = get_group_obj_perms_model(obj)
-        return model.objects.assign_perm(perm, group, obj)
+        return model.objects.assign_perm(perm, group, obj, user_group_object=user_group_object)
 
 
 def assign(perm, user_or_group, obj=None):

@@ -153,10 +153,10 @@ class AssignPermTest(ObjectPermissionTestCase):
         self.assertTrue(user.has_perm("testapp.add_post", post2))
         user_group_object1.delete()
         self.assertFalse(user.has_perm('testapp.add_post', post1))
-        self.assertTrue(user.has_perm("testapp.add_post", post2))
+        self.assertTrue(user.has_perm('testapp.add_post', post2))
         user_group_object2.delete()
         self.assertFalse(user.has_perm('testapp.add_post', post1))
-        self.assertFalse(user.has_perm("testapp.add_post", post2))
+        self.assertFalse(user.has_perm('testapp.add_post', post2))
 
 
 class RemovePermTest(ObjectPermissionTestCase):
