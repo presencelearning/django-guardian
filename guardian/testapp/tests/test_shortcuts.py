@@ -20,8 +20,7 @@ from guardian.shortcuts import get_users_with_perms
 from guardian.shortcuts import get_groups_with_perms
 from guardian.shortcuts import get_objects_for_user
 from guardian.shortcuts import get_objects_for_group
-from guardian.shortcuts import assign_perm_from_user_group_object
-from guardian.shortcuts import assign_perm_from_user_group_objects
+from guardian.shortcuts import assign_perm_from_origins
 from guardian.exceptions import MixedContentTypeError
 from guardian.exceptions import NotUserNorGroup
 from guardian.exceptions import WrongAppError
@@ -30,7 +29,7 @@ from guardian.testapp.models import CharPKModel, ChildTestModel, UUIDPKModel
 from guardian.testapp.models import Post
 from guardian.testapp.tests.test_core import ObjectPermissionTestCase
 from guardian.models import Group, Permission
-from guardian.models import UserGroupObject
+from guardian.models import Origin
 
 
 User = get_user_model()
@@ -168,31 +167,34 @@ class AssignPermTest(ObjectPermissionTestCase):
             self.assertTrue(check.has_perm("change_contenttype", obj))
             self.assertTrue(check.has_perm("delete_contenttype", obj))
 
-    def test_assign_perm_from_user_group_object(self):
-        post = Post.objects.create(title='Rouge One')
+    def test_assign_perm_from_origins(self):
+        post = Post.objects.create(title='Rogue One')
         user = User.objects.create(username='Jyn Erso')
         group = Group.objects.create(name='Rebel Alliance')
-        user_group_object = UserGroupObject.objects.create(user=user, group=group, content_object=post)
-        assign_perm_from_user_group_object('testapp.add_post', user_group_object)
+        origin = Origin.objects.create(user=user, group=group, content_object=post)
+        assign_perm_from_origins('testapp.add_post', [origin])
         self.assertTrue(user.has_perm('testapp.add_post', post))
-        user_group_object.delete()
+        origin.delete()
+        user = User.objects.get(pk=user.pk)
         self.assertFalse(user.has_perm('testapp.add_post', post))
 
-    def test_bulk_assign_perm_from_user_group_objects(self):
-        post1 = Post.objects.create(title='Rouge One')
+    def test_bulk_assign_perm_from_origins(self):
+        post1 = Post.objects.create(title='Rogue One')
         post2 = Post.objects.create(title='A New Hope')
         user = User.objects.create(username='Jyn Erso')
         group = Group.objects.create(name='Rebel Alliance')
-        user_group_object1 = UserGroupObject.objects.create(user=user, group=group, content_object=post1)
-        user_group_object2 = UserGroupObject.objects.create(user=user, group=group, content_object=post2)
-        user_group_objects = [user_group_object1, user_group_object2]
-        assign_perm_from_user_group_objects('testapp.add_post', user_group_objects)
+        origin1 = Origin.objects.create(user=user, group=group, content_object=post1)
+        origin2 = Origin.objects.create(user=user, group=group, content_object=post2)
+        origins = [origin1, origin2]
+        assign_perm_from_origins('testapp.add_post', origins)
         self.assertTrue(user.has_perm('testapp.add_post', post1))
         self.assertTrue(user.has_perm("testapp.add_post", post2))
-        user_group_object1.delete()
+        origin1.delete()
+        user = User.objects.get(pk=user.pk)
         self.assertFalse(user.has_perm('testapp.add_post', post1))
         self.assertTrue(user.has_perm('testapp.add_post', post2))
-        user_group_object2.delete()
+        origin2.delete()
+        user = User.objects.get(pk=user.pk)
         self.assertFalse(user.has_perm('testapp.add_post', post1))
         self.assertFalse(user.has_perm('testapp.add_post', post2))
 
