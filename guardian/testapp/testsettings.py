@@ -1,7 +1,7 @@
+import environ
 import os
 import random
 import string
-import environ
 
 env = environ.Env()
 
@@ -41,21 +41,16 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 ROOT_URLCONF = 'guardian.testapp.tests.urls'
 SITE_ID = 1
 
-TEMPLATE_DIRS = (
-    os.path.join(os.path.dirname(__file__), 'tests', 'templates'),
-)
-
 SECRET_KEY = ''.join([random.choice(string.ascii_letters) for x in range(40)])
 
 # Database specific
 
 DATABASES = {'default': env.db(default="sqlite:///")}
 
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': TEMPLATE_DIRS,
+        'DIRS': os.path.join(os.path.dirname(__file__), 'tests', 'templates'),
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

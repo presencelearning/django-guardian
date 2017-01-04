@@ -51,7 +51,7 @@ class BaseGenericObjectPermission(models.Model):
         abstract = True
 
 
-class UserGroupObject(BaseGenericObjectPermission):
+class Origin(BaseGenericObjectPermission):
     user = models.ForeignKey(user_model_label, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
 
@@ -73,10 +73,10 @@ class UserObjectPermissionBase(BaseObjectPermission):
 
 
 class UserObjectPermission(UserObjectPermissionBase, BaseGenericObjectPermission):
-    user_group_object = models.ForeignKey(UserGroupObject, on_delete=models.CASCADE, null=True)
+    origin = models.ForeignKey(Origin, on_delete=models.CASCADE, null=True)
 
     class Meta:
-        unique_together = ['user', 'permission', 'object_pk', 'user_group_object']
+        unique_together = ['user', 'permission', 'object_pk', 'origin']
 
 
 class GroupObjectPermissionBase(BaseObjectPermission):
