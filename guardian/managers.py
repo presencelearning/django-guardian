@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from django.db import models
 from django.db.models import Q
+from django.db.models import QuerySet
 from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
 from guardian.exceptions import ObjectNotPersisted
@@ -26,7 +27,23 @@ class BaseObjectPermissionManager(models.Manager):
         except models.fields.FieldDoesNotExist:
             return False
 
-    def assign_perm(self, perm, user_or_group, obj):
+    def _perm_kwargs(self, permission, user_or_group, obj, ctype=None, origin=None):
+        if ctype is None:
+            ctype = get_content_type(obj)
+        kwargs = {
+            'permission': permission,
+            self.user_or_group_field: user_or_group,
+        }
+        if self.is_generic():
+            kwargs['content_type'] = ctype
+            kwargs['object_pk'] = obj.pk
+        else:
+            kwargs['content_object'] = obj
+        if origin:
+            kwargs['origin'] = origin
+        return kwargs
+
+    def assign_perm(self, perm, user_or_group, obj, origin=None):
         """
         Assigns permission with given ``perm`` for an instance ``obj`` and
         ``user``.
@@ -40,16 +57,14 @@ class BaseObjectPermissionManager(models.Manager):
         else:
             permission = perm
 
-        kwargs = {'permission': permission, self.user_or_group_field: user_or_group}
-        if self.is_generic():
-            kwargs['content_type'] = ctype
-            kwargs['object_pk'] = obj.pk
-        else:
-            kwargs['content_object'] = obj
+        kwargs = self._perm_kwargs(permission, user_or_group, obj, ctype, origin)
         obj_perm, _ = self.get_or_create(**kwargs)
         return obj_perm
 
-    def bulk_assign_perm(self, perm, user_or_group, queryset):
+    def assign_perm_from_origin(self, perm, origin):
+        return self.assign_perm(perm, origin.user, origin.content_object, origin)
+
+    def bulk_assign_perm(self, perm, user_or_group, queryset, origin=None):
         """
         Bulk assigns permissions with given ``perm`` for an objects in ``queryset`` and
         ``user_or_group``.
@@ -67,14 +82,47 @@ class BaseObjectPermissionManager(models.Manager):
         assigned_perms = []
         for instance in queryset:
             if not checker.has_perm(permission.codename, instance):
-                kwargs = {'permission': permission, self.user_or_group_field: user_or_group}
-                if self.is_generic():
-                    kwargs['content_type'] = ctype
-                    kwargs['object_pk'] = instance.pk
-                else:
-                    kwargs['content_object'] = instance
+                kwargs = self._perm_kwargs(permission, user_or_group, instance, ctype, origin)
                 assigned_perms.append(self.model(**kwargs))
-        self.model.objects.bulk_create(assigned_perms)
+        self.bulk_create(assigned_perms)
+
+        return assigned_perms
+
+    def bulk_assign_perm_from_origins(self, perm, origins):
+        """
+        Bulk assigns permissions with given ``perm`` for the user and content_object in origins.
+        The content_objects must be of the same type.
+        """
+        if len(origins) == 0:
+            return []
+
+        if isinstance(origins, QuerySet):
+            origins = origins.select_related('content_object')
+
+        ctype = get_content_type(origins[0].content_object)
+
+        if not isinstance(perm, Permission):
+            permission = Permission.objects.get(content_type=ctype, codename=perm)
+        else:
+            permission = perm
+
+        by_user = {o.user: [] for o in origins}
+        for o in origins:
+            by_user[o.user].append(o)
+
+        assigned_perms = []
+        for user in by_user:
+            objects = by_user[user]
+
+            checker = ObjectPermissionChecker(user)
+            checker.prefetch_perms([o.content_object for o in objects])
+
+            for origin in objects:
+                instance = origin.content_object
+                if not checker.has_perm('{}.{}'.format(permission.content_type.name, permission.codename), instance):
+                    kwargs = self._perm_kwargs(permission, user, instance, ctype, origin)
+                    assigned_perms.append(self.model(**kwargs))
+        self.bulk_create(assigned_perms)
 
         return assigned_perms
 
@@ -127,7 +175,7 @@ class BaseObjectPermissionManager(models.Manager):
                          permission__content_type=ctype)
 
         if self.is_generic():
-            filters &= Q(object_pk__in = [str(pk) for pk in queryset.values_list('pk', flat=True)])
+            filters &= Q(object_pk__in=[str(pk) for pk in queryset.values_list('pk', flat=True)])
         else:
             filters &= Q(content_object__in=queryset)
 

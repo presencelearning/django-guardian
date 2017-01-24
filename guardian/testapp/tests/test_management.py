@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
-from django.test import TestCase, override_settings
+from django.test import TestCase
+from django.test import override_settings
 
 from guardian.compat import get_user_model
-import mock
 from guardian.management import create_anonymous_user
 from guardian.utils import get_anonymous_user
+from unittest import mock
 
 
 mocked_get_init_anon = mock.Mock()

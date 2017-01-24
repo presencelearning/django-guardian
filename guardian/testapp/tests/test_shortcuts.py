@@ -5,26 +5,32 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models.query import QuerySet
 from django.test import TestCase
 
-from guardian.shortcuts import get_perms_for_model
-from guardian.core import ObjectPermissionChecker
+from guardian.compat import get_model_name
 from guardian.compat import get_user_model
-from guardian.compat import get_user_permission_full_codename, get_model_name
-from guardian.shortcuts import assign
-from guardian.shortcuts import assign_perm
-from guardian.shortcuts import remove_perm
-from guardian.shortcuts import get_perms
-from guardian.shortcuts import get_user_perms
-from guardian.shortcuts import get_group_perms
-from guardian.shortcuts import get_users_with_perms
-from guardian.shortcuts import get_groups_with_perms
-from guardian.shortcuts import get_objects_for_user
-from guardian.shortcuts import get_objects_for_group
+from guardian.compat import get_user_permission_full_codename
+from guardian.core import ObjectPermissionChecker
 from guardian.exceptions import MixedContentTypeError
 from guardian.exceptions import NotUserNorGroup
 from guardian.exceptions import WrongAppError
+from guardian.models import Group
+from guardian.models import Origin
+from guardian.models import Permission
+from guardian.shortcuts import assign
+from guardian.shortcuts import assign_perm
+from guardian.shortcuts import assign_perm_from_origins
+from guardian.shortcuts import assign_perm_from_origins
+from guardian.shortcuts import get_group_perms
+from guardian.shortcuts import get_groups_with_perms
+from guardian.shortcuts import get_objects_for_group
+from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_perms
+from guardian.shortcuts import get_perms_for_model
+from guardian.shortcuts import get_user_perms
+from guardian.shortcuts import get_users_with_perms
+from guardian.shortcuts import remove_perm
 from guardian.testapp.models import NonIntPKModel
+from guardian.testapp.models import Post
 from guardian.testapp.tests.test_core import ObjectPermissionTestCase
-from guardian.models import Group, Permission
 
 import warnings
 
@@ -123,6 +129,37 @@ class AssignPermTest(ObjectPermissionTestCase):
             assign("contenttypes.change_contenttype", self.group)
             self.assertEqual(len(warns), 1)
             self.assertTrue(isinstance(warns[0].message, DeprecationWarning))
+
+    def test_assign_perm_from_origins(self):
+        post = Post.objects.create(title='Rogue One')
+        user = User.objects.create(username='Jyn Erso')
+        group = Group.objects.create(name='Rebel Alliance')
+        origin = Origin.objects.create(user=user, group=group, content_object=post)
+        assign_perm_from_origins('testapp.add_post', [origin])
+        self.assertTrue(user.has_perm('testapp.add_post', post))
+        origin.delete()
+        user = User.objects.get(pk=user.pk)
+        self.assertFalse(user.has_perm('testapp.add_post', post))
+
+    def test_bulk_assign_perm_from_origins(self):
+        post1 = Post.objects.create(title='Rogue One')
+        post2 = Post.objects.create(title='A New Hope')
+        user = User.objects.create(username='Jyn Erso')
+        group = Group.objects.create(name='Rebel Alliance')
+        origin1 = Origin.objects.create(user=user, group=group, content_object=post1)
+        origin2 = Origin.objects.create(user=user, group=group, content_object=post2)
+        origins = [origin1, origin2]
+        assign_perm_from_origins('testapp.add_post', origins)
+        self.assertTrue(user.has_perm('testapp.add_post', post1))
+        self.assertTrue(user.has_perm("testapp.add_post", post2))
+        origin1.delete()
+        user = User.objects.get(pk=user.pk)
+        self.assertFalse(user.has_perm('testapp.add_post', post1))
+        self.assertTrue(user.has_perm('testapp.add_post', post2))
+        origin2.delete()
+        user = User.objects.get(pk=user.pk)
+        self.assertFalse(user.has_perm('testapp.add_post', post1))
+        self.assertFalse(user.has_perm('testapp.add_post', post2))
 
 
 class RemovePermTest(ObjectPermissionTestCase):
@@ -403,13 +440,20 @@ class GetUsersWithPermsTest(TestCase):
             admin: ["add_contenttype", "change_contenttype", "delete_contenttype"],
             self.user2: ["delete_contenttype"]
         }
-        result = get_users_with_perms(self.obj1, attach_perms=True,
-            with_superusers=False, with_group_users=True)
+        result = get_users_with_perms(
+            self.obj1,
+            attach_perms=True,
+            with_superusers=False,
+            with_group_users=True
+        )
         self.assertEqual(result.keys(), expected.keys())
         for key, perms in result.items():
             self.assertEqual(set(perms), set(expected[key]))
-        result = get_users_with_perms(self.obj1, attach_perms=True,
-            with_superusers=False, with_group_users=False)
+        result = get_users_with_perms(
+            self.obj1,
+            attach_perms=True,
+            with_superusers=False,
+            with_group_users=False)
         expected = {self.user1: ["change_contenttype"],
                     admin: ["delete_contenttype"]}
         self.assertEqual(result, expected)

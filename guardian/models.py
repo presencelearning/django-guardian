@@ -1,12 +1,15 @@
 from __future__ import unicode_literals
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from guardian.compat import unicode, user_model_label
+from guardian.compat import unicode
+from guardian.compat import user_model_label
 from guardian.ctypes import get_content_type
-from guardian.managers import GroupObjectPermissionManager, UserObjectPermissionManager
+from guardian.managers import GroupObjectPermissionManager
+from guardian.managers import UserObjectPermissionManager
 
 try:
     from django.contrib.contenttypes.fields import GenericForeignKey
@@ -48,6 +51,14 @@ class BaseGenericObjectPermission(models.Model):
         abstract = True
 
 
+class Origin(BaseGenericObjectPermission):
+    user = models.ForeignKey(user_model_label, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ['user', 'group', 'object_pk', 'content_type']
+
+
 class UserObjectPermissionBase(BaseObjectPermission):
     """
     **Manager**: :manager:`UserObjectPermissionManager`
@@ -62,9 +73,10 @@ class UserObjectPermissionBase(BaseObjectPermission):
 
 
 class UserObjectPermission(UserObjectPermissionBase, BaseGenericObjectPermission):
+    origin = models.ForeignKey(Origin, on_delete=models.CASCADE, null=True)
 
     class Meta:
-        unique_together = ['user', 'permission', 'object_pk']
+        unique_together = ['user', 'permission', 'object_pk', 'origin']
 
 
 class GroupObjectPermissionBase(BaseObjectPermission):
