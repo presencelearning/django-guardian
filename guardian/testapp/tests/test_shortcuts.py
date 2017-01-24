@@ -82,6 +82,54 @@ class AssignPermTest(ObjectPermissionTestCase):
         self.assertTrue(self.user.has_perm("change_contenttype", self.ctype))
         self.assertTrue(self.user.has_perm("delete_contenttype", self.ctype))
 
+    def test_user_assign_perm_multiple_times(self):
+        post = Post.objects.create(title='Rogue One')
+        post2 = Post.objects.create(title='Rogue One2')
+        user = User.objects.create(username='Jyn Erso')
+        group = Group.objects.create(name='Rebel Alliance')
+        origin = Origin.objects.create(user=user, group=group, content_object=post)
+        origin2 = Origin.objects.create(user=user, group=group, content_object=post2)
+        perm1 = assign_perm('testapp.add_post', user, post, origin=origin)
+        self.assertTrue(user.has_perm('testapp.add_post', post))
+        self.assertEqual(user, perm1.user)
+        self.assertEqual(post, perm1.content_object)
+        self.assertEqual(origin, perm1.origin)
+
+        perm2 = assign_perm('testapp.add_post', user, post, origin=origin2)
+        self.assertEqual(user, perm2.user)
+        self.assertEqual(post, perm2.content_object)
+        self.assertEqual(origin2, perm2.origin)
+
+        # Should not throw
+        perm3 = assign_perm('testapp.add_post', user, post)
+        self.assertEqual(user, perm3.user)
+        self.assertEqual(post, perm3.content_object)
+        self.assertIsNone(perm3.origin)
+
+    def test_user_assign_perm_multiple_times_inverse(self):
+        post = Post.objects.create(title='Rogue One')
+        post2 = Post.objects.create(title='Rogue One2')
+        user = User.objects.create(username='Jyn Erso')
+        group = Group.objects.create(name='Rebel Alliance')
+        origin = Origin.objects.create(user=user, group=group, content_object=post)
+        origin2 = Origin.objects.create(user=user, group=group, content_object=post2)
+
+        perm1 = assign_perm('testapp.add_post', user, post)
+        self.assertEqual(user, perm1.user)
+        self.assertEqual(post, perm1.content_object)
+        self.assertIsNone(perm1.origin)
+
+        perm2 = assign_perm('testapp.add_post', user, post, origin=origin)
+        self.assertTrue(user.has_perm('testapp.add_post', post))
+        self.assertEqual(user, perm2.user)
+        self.assertEqual(post, perm2.content_object)
+        self.assertEqual(origin, perm2.origin)
+
+        perm3 = assign_perm('testapp.add_post', user, post, origin=origin2)
+        self.assertEqual(user, perm3.user)
+        self.assertEqual(post, perm3.content_object)
+        self.assertEqual(origin2, perm3.origin)
+
     def test_group_assign_perm(self):
         assign_perm("add_contenttype", self.group, self.ctype)
         assign_perm("change_contenttype", self.group, self.ctype)

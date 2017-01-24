@@ -50,7 +50,7 @@ DATABASES = {'default': env.db(default="sqlite:///")}
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': os.path.join(os.path.dirname(__file__), 'tests', 'templates'),
+        'DIRS': [os.path.join(os.path.dirname(__file__), 'tests', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
