@@ -59,12 +59,9 @@ class BaseObjectPermissionManager(models.Manager):
 
         kwargs = self._perm_kwargs(permission, user_or_group, obj, ctype, origin)
         # Note that a get or create will fail with more than one result if origin is not present and multiple objects with an origin exist, however if origin is present and None, then it will also fail because None is not an origin. So we check in 2 steps.
-        try:
-            obj_perm = self.filter(**kwargs).first()
-            if not obj_perm:
-                obj_perm = self.create(**kwargs)
-        except Exception as exp:
-            import pdb;pdb.set_trace()
+        obj_perm = self.filter(**kwargs).first()
+        if not obj_perm:
+            obj_perm = self.create(**kwargs)
 
         return obj_perm
 
