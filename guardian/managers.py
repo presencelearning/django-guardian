@@ -39,8 +39,8 @@ class BaseObjectPermissionManager(models.Manager):
             kwargs['object_pk'] = obj.pk
         else:
             kwargs['content_object'] = obj
-        if origin:
-            kwargs['origin'] = origin
+
+        kwargs['origin'] = origin
         return kwargs
 
     def assign_perm(self, perm, user_or_group, obj, origin=None):
@@ -58,7 +58,14 @@ class BaseObjectPermissionManager(models.Manager):
             permission = perm
 
         kwargs = self._perm_kwargs(permission, user_or_group, obj, ctype, origin)
-        obj_perm, _ = self.get_or_create(**kwargs)
+        # Note that a get or create will fail with more than one result if origin is not present and multiple objects with an origin exist, however if origin is present and None, then it will also fail because None is not an origin. So we check in 2 steps.
+        try:
+            obj_perm = self.filter(**kwargs).first()
+            if not obj_perm:
+                obj_perm = self.create(**kwargs)
+        except Exception as exp:
+            import pdb;pdb.set_trace()
+
         return obj_perm
 
     def assign_perm_from_origin(self, perm, origin):

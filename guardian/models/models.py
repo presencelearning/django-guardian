@@ -59,16 +59,16 @@ class UserObjectPermissionBase(BaseObjectPermission):
     **Manager**: :manager:`UserObjectPermissionManager`
     """
     user = models.ForeignKey(user_model_label, on_delete=models.CASCADE)
+    origin = models.ForeignKey(Origin, on_delete=models.CASCADE, null=True)
 
     objects = UserObjectPermissionManager()
 
     class Meta:
         abstract = True
-        unique_together = ['user', 'permission', 'content_object']
+        unique_together = ['user', 'permission', 'content_object', 'origin']
 
 
 class UserObjectPermissionAbstract(UserObjectPermissionBase, BaseGenericObjectPermission):
-    origin = models.ForeignKey(Origin, on_delete=models.CASCADE, null=True)
 
     class Meta(UserObjectPermissionBase.Meta, BaseGenericObjectPermission.Meta):
         abstract = True
@@ -86,19 +86,20 @@ class GroupObjectPermissionBase(BaseObjectPermission):
     **Manager**: :manager:`GroupObjectPermissionManager`
     """
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    origin = models.ForeignKey(Origin, on_delete=models.CASCADE, null=True)
 
     objects = GroupObjectPermissionManager()
 
     class Meta:
         abstract = True
-        unique_together = ['group', 'permission', 'content_object']
+        unique_together = ['group', 'permission', 'content_object', 'origin']
 
 
 class GroupObjectPermissionAbstract(GroupObjectPermissionBase, BaseGenericObjectPermission):
 
     class Meta(GroupObjectPermissionBase.Meta, BaseGenericObjectPermission.Meta):
         abstract = True
-        unique_together = ['group', 'permission', 'object_pk']
+        unique_together = ['group', 'permission', 'object_pk', 'origin']
 
 class GroupObjectPermission(GroupObjectPermissionAbstract):
 
