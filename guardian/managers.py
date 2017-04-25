@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
+from django.db import IntegrityError
 from django.db import models
+from django.db import transaction
 from django.db.models import Q
 from django.db.models import QuerySet
 from guardian.core import ObjectPermissionChecker
@@ -110,23 +112,15 @@ class BaseObjectPermissionManager(models.Manager):
         else:
             permission = perm
 
-        by_user = {o.user: [] for o in origins}
-        for o in origins:
-            by_user[o.user].append(o)
-
         assigned_perms = []
-        for user in by_user:
-            objects = by_user[user]
-
-            checker = ObjectPermissionChecker(user)
-            checker.prefetch_perms([o.content_object for o in objects])
-
-            for origin in objects:
-                instance = origin.content_object
-                if not checker.has_perm('{}.{}'.format(permission.content_type.name, permission.codename), instance):
-                    kwargs = self._perm_kwargs(permission, user, instance, ctype, origin)
-                    assigned_perms.append(self.model(**kwargs))
-        self.bulk_create(assigned_perms)
+        for o in origins:
+            try:
+                with transaction.atomic():
+                    kwargs = self._perm_kwargs(permission, o.user, o.content_object, ctype, o)
+                    instance = self.create(**kwargs)
+                    assigned_perms.append(instance)
+            except IntegrityError:
+                pass
 
         return assigned_perms
 
