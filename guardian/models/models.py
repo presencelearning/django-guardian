@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -47,6 +49,7 @@ class BaseGenericObjectPermission(models.Model):
 
 
 class Origin(BaseGenericObjectPermission):
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True)
     user = models.ForeignKey(user_model_label, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
 
