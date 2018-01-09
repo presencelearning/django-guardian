@@ -1,7 +1,8 @@
-import environ
 import os
 import random
 import string
+import environ
+import django
 
 env = environ.Env()
 
@@ -28,13 +29,16 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-# this fixes warnings in django 1.7
-MIDDLEWARE_CLASSES = (
+# this fixes warnings in django 1.10
+MIDDLEWARE = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 )
+
+if django.VERSION < (1, 10):
+    MIDDLEWARE_CLASSES = MIDDLEWARE
 
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
@@ -50,7 +54,9 @@ DATABASES = {'default': env.db(default="sqlite:///")}
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(os.path.dirname(__file__), 'tests', 'templates')],
+        'DIRS': (
+            os.path.join(os.path.dirname(__file__), 'tests', 'templates'),
+        ),
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -65,3 +71,6 @@ TEMPLATES = [
         },
     },
 ]
+
+if django.VERSION < (1, 8):
+    TEMPLATE_DIRS = TEMPLATES[0]['DIRS']

@@ -1,25 +1,18 @@
 import os
-import sys
 from setuptools import setup
 from extras import RunFlakesCommand
 
 
-def version_scheme(version):
-    from setuptools_scm.version import guess_next_dev_version
-    version = guess_next_dev_version(version)
-    return version.lstrip("v")
+version = '1.4.9'
 
 readme_file = os.path.join(os.path.dirname(__file__), 'README.rst')
 with open(readme_file, 'r') as f:
-    long_description = f.readline().strip()
+    long_description = f.read()
 
 setup(
     name='django-guardian',
-    use_scm_version={
-        'write_to': "guardian/version.py",
-        'version_scheme': version_scheme,
-    },
-    setup_requires=['setuptools_scm', 'pytest-runner'],
+    version=version,
+    setup_requires=['pytest-runner', ],
     url='http://github.com/django-guardian/django-guardian',
     author='Lukasz Balcerzak',
     author_email='lukaszbalcerzak@gmail.com',
@@ -42,15 +35,19 @@ setup(
     classifiers=['Development Status :: 5 - Production/Stable',
                  'Environment :: Web Environment',
                  'Framework :: Django',
+                 'Framework :: Django :: 1.8',
+                 'Framework :: Django :: 1.9',
+                 'Framework :: Django :: 1.10',
+                 'Framework :: Django :: 1.11',
                  'Intended Audience :: Developers',
                  'License :: OSI Approved :: BSD License',
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',
                  'Topic :: Security',
                  'Programming Language :: Python :: 2.7',
-                 'Programming Language :: Python :: 3.3',
                  'Programming Language :: Python :: 3.4',
                  'Programming Language :: Python :: 3.5',
+                 'Programming Language :: Python :: 3.6',
                  ],
     test_suite='tests.main',
     cmdclass={'flakes': RunFlakesCommand},

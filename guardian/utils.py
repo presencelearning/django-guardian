@@ -9,13 +9,12 @@ from __future__ import unicode_literals
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.contrib.auth.models import AnonymousUser, Group
-from django.contrib.auth.views import redirect_to_login
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db.models import Model
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from guardian.compat import get_user_model
+from guardian.compat import get_user_model, remote_model
 from guardian.conf import settings as guardian_settings
 from guardian.ctypes import get_content_type
 from guardian.exceptions import NotUserNorGroup
@@ -82,8 +81,9 @@ def get_identity(identity):
                           "(got %s)" % identity)
 
 
-def get_403_or_None(request, perms, obj=None, login_url=None,
-                    redirect_field_name=None, return_403=False, accept_global_perms=False):
+def get_40x_or_None(request, perms, obj=None, login_url=None,
+                    redirect_field_name=None, return_403=False,
+                    return_404=False, accept_global_perms=False):
     login_url = login_url or settings.LOGIN_URL
     redirect_field_name = redirect_field_name or REDIRECT_FIELD_NAME
 
@@ -110,7 +110,18 @@ def get_403_or_None(request, perms, obj=None, login_url=None,
             elif guardian_settings.RAISE_403:
                 raise PermissionDenied
             return HttpResponseForbidden()
+        if return_404:
+            if guardian_settings.RENDER_404:
+                response = render_to_response(
+                    guardian_settings.TEMPLATE_404, {},
+                    RequestContext(request))
+                response.status_code = 404
+                return response
+            elif guardian_settings.RAISE_404:
+                raise ObjectDoesNotExist
+            return HttpResponseNotFound()
         else:
+            from django.contrib.auth.views import redirect_to_login
             return redirect_to_login(request.get_full_path(),
                                      login_url,
                                      redirect_field_name)
@@ -128,8 +139,8 @@ def clean_orphan_obj_perms():
 
     deleted = 0
     # TODO: optimise
-    for perm in chain(UserObjectPermission.objects.all(),
-                      GroupObjectPermission.objects.all()):
+    for perm in chain(UserObjectPermission.objects.all().iterator(),
+                      GroupObjectPermission.objects.all().iterator()):
         if perm.content_object is None:
             logger.debug("Removing %s (pk=%d)" % (perm, perm.pk))
             perm.delete()
@@ -165,7 +176,7 @@ def get_obj_perms_model(obj, base_cls, generic_cls):
                 # make sure that content_object's content_type is same as
                 # the one of given obj
                 fk = model._meta.get_field('content_object')
-                if ctype == get_content_type(fk.rel.to):
+                if ctype == get_content_type(remote_model(fk)):
                     return model
     return generic_cls
 
