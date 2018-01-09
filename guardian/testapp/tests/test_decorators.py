@@ -12,7 +12,6 @@ from django.shortcuts import get_object_or_404
 from django.template import TemplateDoesNotExist
 from django.test import TestCase
 
-from django import get_version as django_get_version
 from guardian.compat import get_user_model
 from guardian.compat import get_user_model_path
 from guardian.compat import get_user_permission_full_codename
@@ -25,6 +24,7 @@ from guardian.testapp.tests.conf import TEST_SETTINGS
 from guardian.testapp.tests.conf import TestDataMixin
 from guardian.testapp.tests.conf import override_settings
 from guardian.testapp.tests.conf import skipUnlessTestApp
+from django import get_version as django_get_version
 
 User = get_user_model()
 user_model_path = get_user_model_path()

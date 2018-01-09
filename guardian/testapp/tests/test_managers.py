@@ -2,8 +2,8 @@ from __future__ import unicode_literals
 from django.test import TestCase
 import mock
 import warnings
-from guardian.managers import GroupObjectPermissionManager
 from guardian.managers import UserObjectPermissionManager
+from guardian.managers import GroupObjectPermissionManager
 
 
 class TestManagers(TestCase):

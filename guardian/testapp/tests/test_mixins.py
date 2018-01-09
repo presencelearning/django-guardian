@@ -6,15 +6,15 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.test import TestCase
 from django.test.client import RequestFactory
-from django.views.generic import ListView
 from django.views.generic import View
+from django.views.generic import ListView
 
-from guardian.compat import get_user_model
-from guardian.mixins import LoginRequiredMixin
-from guardian.mixins import PermissionListMixin
-from guardian.mixins import PermissionRequiredMixin
 from guardian.shortcuts import assign_perm
-from unittest import mock
+from guardian.compat import get_user_model
+import mock
+from guardian.mixins import LoginRequiredMixin
+from guardian.mixins import PermissionRequiredMixin
+from guardian.mixins import PermissionListMixin
 
 from ..models import Post
 

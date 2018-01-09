@@ -5,32 +5,27 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models.query import QuerySet
 from django.test import TestCase
 
-from guardian.compat import get_model_name
-from guardian.compat import get_user_model
-from guardian.compat import get_user_permission_full_codename
+from guardian.shortcuts import get_perms_for_model
 from guardian.core import ObjectPermissionChecker
-from guardian.exceptions import MixedContentTypeError
-from guardian.exceptions import NotUserNorGroup
-from guardian.exceptions import WrongAppError
-from guardian.models import Group
-from guardian.models import Origin
-from guardian.models import Permission
+from guardian.compat import get_user_model
+from guardian.compat import get_user_permission_full_codename, get_model_name
 from guardian.shortcuts import assign
 from guardian.shortcuts import assign_perm
 from guardian.shortcuts import assign_perm_from_origins
-from guardian.shortcuts import assign_perm_from_origins
-from guardian.shortcuts import get_group_perms
-from guardian.shortcuts import get_groups_with_perms
-from guardian.shortcuts import get_objects_for_group
-from guardian.shortcuts import get_objects_for_user
-from guardian.shortcuts import get_perms
-from guardian.shortcuts import get_perms_for_model
-from guardian.shortcuts import get_user_perms
-from guardian.shortcuts import get_users_with_perms
 from guardian.shortcuts import remove_perm
-from guardian.testapp.models import NonIntPKModel
-from guardian.testapp.models import Post
+from guardian.shortcuts import get_perms
+from guardian.shortcuts import get_user_perms
+from guardian.shortcuts import get_group_perms
+from guardian.shortcuts import get_users_with_perms
+from guardian.shortcuts import get_groups_with_perms
+from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_group
+from guardian.exceptions import MixedContentTypeError
+from guardian.exceptions import NotUserNorGroup
+from guardian.exceptions import WrongAppError
+from guardian.testapp.models import NonIntPKModel, Post
 from guardian.testapp.tests.test_core import ObjectPermissionTestCase
+from guardian.models import Group, Permission, Origin
 
 import warnings
 

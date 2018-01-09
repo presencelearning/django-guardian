@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('guardian', '0006_auto_20170124_0803'),
-        ('testapp', '0008_auto_20161207_1604'),
+        ('testapp', '0002_logentrywithgroup'),
     ]
 
     operations = [
