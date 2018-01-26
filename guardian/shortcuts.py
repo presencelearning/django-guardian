@@ -2,6 +2,12 @@
 Convenient shortcuts to manage or check object permissions.
 """
 from __future__ import unicode_literals
+
+import warnings
+
+from collections import defaultdict
+from itertools import groupby
+
 from django.apps import apps
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
@@ -12,17 +18,16 @@ from django.db.models import QuerySet
 from django.shortcuts import _get_queryset
 from guardian.compat import basestring
 from guardian.compat import get_user_model
+from guardian.compat import is_anonymous
 from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
 from guardian.exceptions import MixedContentTypeError
 from guardian.exceptions import WrongAppError
+from guardian.models import GroupObjectPermission
 from guardian.utils import get_anonymous_user
 from guardian.utils import get_group_obj_perms_model
 from guardian.utils import get_identity
 from guardian.utils import get_user_obj_perms_model
-from itertools import groupby
-
-import warnings
 
 
 def to_permission(perm):
@@ -145,7 +150,9 @@ def assign_perm(perm, user_or_group, obj=None, origin=None):
 
 def assign(perm, user_or_group, obj=None):
     """ Depreciated function name left in for compatibility"""
-    warnings.warn("Shortcut function 'assign' is being renamed to 'assign_perm'. Update your code accordingly as old name will be depreciated in 2.0 version.", DeprecationWarning)
+    warnings.warn(
+        "Shortcut function 'assign' is being renamed to 'assign_perm'. Update your code accordingly as old name will be depreciated in 2.0 version.",
+        DeprecationWarning)
     return assign_perm(perm, user_or_group, obj)
 
 
@@ -352,10 +359,10 @@ def get_groups_with_perms(obj, attach_perms=False):
 
     """
     ctype = get_content_type(obj)
+    group_model = get_group_obj_perms_model(obj)
+
     if not attach_perms:
-        # It's much easier without attached perms so we do it first if that is
-        # the case
-        group_model = get_group_obj_perms_model(obj)
+        # It's much easier without attached perms so we do it first if that is the case
         group_rel_name = group_model.group.field.related_query_name()
         if group_model.objects.is_generic():
             group_filters = {
@@ -364,15 +371,19 @@ def get_groups_with_perms(obj, attach_perms=False):
             }
         else:
             group_filters = {'%s__content_object' % group_rel_name: obj}
-        groups = Group.objects.filter(**group_filters).distinct()
-        return groups
+        return Group.objects.filter(**group_filters).distinct()
     else:
-        # TODO: Do not hit db for each group!
-        groups = {}
-        for group in get_groups_with_perms(obj):
-            if group not in groups:
-                groups[group] = sorted(get_group_perms(group, obj))
-        return groups
+        group_perms_mapping = defaultdict(list)
+        groups_with_perms = get_groups_with_perms(obj)
+        qs = group_model.objects.filter(group__in=groups_with_perms).prefetch_related('group', 'permission')
+        if group_model is GroupObjectPermission:
+            qs = qs.filter(object_pk=obj.pk)
+        else:
+            qs = qs.filter(content_object_id=obj.pk)
+
+        for group_perm in qs:
+            group_perms_mapping[group_perm.group].append(group_perm.permission.codename)
+        return dict(group_perms_mapping)
 
 
 def get_objects_for_user(user, perms, klass=None, use_groups=True, any_perm=False,
@@ -380,9 +391,6 @@ def get_objects_for_user(user, perms, klass=None, use_groups=True, any_perm=Fals
     """
     Returns queryset of objects for which a given ``user`` has *all*
     permissions present at ``perms``.
-
-    If ``perms`` is an empty list, then it returns objects for which
-    a given ``user`` has *any* object permission.
 
     :param user: ``User`` or ``AnonymousUser`` instance for which objects would
       be returned.
@@ -531,7 +539,7 @@ def get_objects_for_user(user, perms, klass=None, use_groups=True, any_perm=Fals
     # Check if the user is anonymous. The
     # django.contrib.auth.models.AnonymousUser object doesn't work for queries
     # and it's nice to be able to pass in request.user blindly.
-    if user.is_anonymous():
+    if is_anonymous(user):
         user = get_anonymous_user()
 
     global_perms = set()

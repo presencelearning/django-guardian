@@ -5,9 +5,8 @@ django-guardian
 .. image:: https://travis-ci.org/django-guardian/django-guardian.svg?branch=devel
   :target: https://travis-ci.org/django-guardian/django-guardian
 
-``django-guardian`` is implementation of per object permissions [1]_ as 
-authorization backend which is supported since Django_ 1.5. It won't
-work with older Django_ releases.
+``django-guardian`` is an implementation of per object permissions [1]_ on top
+of Django's authorization backend
 
 Documentation
 -------------
@@ -17,10 +16,10 @@ Online documentation is available at https://django-guardian.readthedocs.io/.
 Requirements
 ------------
 
-* Python 2.7 or 3.3+
-* A supported version of Django (currently 1.7+)
+* Python 2.7 or 3.4+
+* A supported version of Django (currently 1.8+)
 
-Travis CI tests on Django version 1.7-1.10.
+Travis CI tests on Django version 1.8, 1.10, and 1.11.
 
 Installation
 ------------
@@ -34,21 +33,25 @@ Configuration
 
 We need to hook ``django-guardian`` into our project.
 
-1. Put ``guardian`` into your ``INSTALLED_APPS`` at settings module::
+1. Put ``guardian`` into your ``INSTALLED_APPS`` at settings module:
 
-      INSTALLED_APPS = (
-         ...
-         'guardian',
-      )
+.. code:: python
+
+    INSTALLED_APPS = (
+     ...
+     'guardian',
+    )
    
-2. Add extra authorization backend to your `settings.py`::
+2. Add extra authorization backend to your ``settings.py``:
 
-      AUTHENTICATION_BACKENDS = (
-          'django.contrib.auth.backends.ModelBackend', # default
-          'guardian.backends.ObjectPermissionBackend',
-      )
+.. code:: python
 
-4. Create ``guardian`` database tables by running::
+    AUTHENTICATION_BACKENDS = (
+        'django.contrib.auth.backends.ModelBackend', # default
+        'guardian.backends.ObjectPermissionBackend',
+    )
+
+3. Create ``guardian`` database tables by running::
 
      python manage.py migrate
 
@@ -58,20 +61,24 @@ Usage
 After installation and project hooks we can finally use object permissions
 with Django_.
 
-Lets start really quickly::
+Lets start really quickly:
 
-    >>> from django.contrib.auth.models import User, Group
-    >>> jack = User.objects.create_user('jack', 'jack@example.com', 'topsecretagentjack')
-    >>> admins = Group.objects.create(name='admins')
-    >>> jack.has_perm('change_group', admins)
-    False
-    >>> from guardian.models import UserObjectPermission
-    >>> UserObjectPermission.objects.assign_perm('change_group', user=jack, obj=admins)
-    <UserObjectPermission: admins | jack | change_group>
-    >>> jack.has_perm('change_group', admins)
-    True
+.. code:: python
 
-Of course our agent jack here would not be able to *change_group* globally::
+      >>> from django.contrib.auth.models import User, Group
+      >>> jack = User.objects.create_user('jack', 'jack@example.com', 'topsecretagentjack')
+      >>> admins = Group.objects.create(name='admins')
+      >>> jack.has_perm('change_group', admins)
+      False
+      >>> from guardian.models import UserObjectPermission
+      >>> UserObjectPermission.objects.assign_perm('change_group', jack, obj=admins)
+      <UserObjectPermission: admins | jack | change_group>
+      >>> jack.has_perm('change_group', admins)
+      True
+
+Of course our agent jack here would not be able to *change_group* globally:
+
+.. code:: python
 
     >>> jack.has_perm('change_group')
     False
@@ -82,7 +89,9 @@ Admin integration
 Replace ``admin.ModelAdmin`` with ``GuardedModelAdmin`` for those models
 which should have object permissions support within admin panel.
 
-For example::
+For example:
+
+.. code:: python
 
     from django.contrib import admin
     from myapp.models import Author

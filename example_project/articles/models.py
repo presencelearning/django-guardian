@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
 from django.db import models
-from django.core.urlresolvers import reverse
+from guardian.compat import reverse
+
 
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 
@@ -26,8 +27,8 @@ class Article(models.Model):
 
 
 class ArticleUserObjectPermission(UserObjectPermissionBase):
-    content_object = models.ForeignKey(Article)
+    content_object = models.ForeignKey(Article, on_delete=models.CASCADE)
 
 
 class ArticleGroupObjectPermission(GroupObjectPermissionBase):
-    content_object = models.ForeignKey(Article)
+    content_object = models.ForeignKey(Article, on_delete=models.CASCADE)
