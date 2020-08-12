@@ -8,15 +8,16 @@ from collections import defaultdict
 from itertools import groupby
 
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q, QuerySet
 from django.shortcuts import _get_queryset
 
-from guardian.compat import basestring, get_user_model, is_anonymous
+from guardian.compat import basestring
 from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
-from guardian.exceptions import MixedContentTypeError, WrongAppError
+from guardian.exceptions import MixedContentTypeError, WrongAppError, MultipleIdentityAndObjectError
 from guardian.models import GroupObjectPermission
 from guardian.utils import get_anonymous_user, get_group_obj_perms_model, get_identity, get_user_obj_perms_model
 
@@ -30,7 +31,8 @@ def assign_perm(perm, user_or_group, obj=None):
       If ``obj`` is not given, must be in format ``app_label.codename`` or
       ``Permission`` instance.
 
-    :param user_or_group: instance of ``User``, ``AnonymousUser`` or ``Group``;
+    :param user_or_group: instance of ``User``, ``AnonymousUser``, ``Group``,
+      list of ``User`` or ``Group``, or queryset of ``User`` or ``Group``; 
       passing any other object would raise
       ``guardian.exceptions.NotUserNorGroup`` exception
 
@@ -69,7 +71,6 @@ def assign_perm(perm, user_or_group, obj=None):
     <Permission: sites | site | Can change site>
 
     """
-
     user, group = get_identity(user_or_group)
     # If obj is None we try to operate on global permissions
     if obj is None:
@@ -93,12 +94,22 @@ def assign_perm(perm, user_or_group, obj=None):
         perm = perm.split('.')[-1]
 
     if isinstance(obj, QuerySet):
+        if isinstance(user_or_group, (QuerySet, list)):
+            raise MultipleIdentityAndObjectError("Only bulk operations on either users/groups OR objects supported")
         if user:
             model = get_user_obj_perms_model(obj.model)
             return model.objects.bulk_assign_perm(perm, user, obj)
         if group:
             model = get_group_obj_perms_model(obj.model)
             return model.objects.bulk_assign_perm(perm, group, obj)
+
+    if isinstance(user_or_group, (QuerySet, list)):
+        if user:
+            model = get_user_obj_perms_model(obj)
+            return model.objects.assign_perm_to_many(perm, user, obj)
+        if group:
+            model = get_group_obj_perms_model(obj)
+            return model.objects.assign_perm_to_many(perm, group, obj)
 
     if user:
         model = get_user_obj_perms_model(obj)
@@ -212,7 +223,7 @@ def get_perms_for_model(cls):
 
 
 def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
-                         with_group_users=True):
+                         with_group_users=True, only_with_perms_in=None):
     """
     Returns queryset of all ``User`` objects with *any* object permissions for
     the given ``obj``.
@@ -230,6 +241,10 @@ def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
       **not** contain those users who have only group permissions for given
       ``obj``.
 
+    :param only_with_perms_in: Default: ``None``. If set to an iterable of
+      permission strings then only users with those permissions would be
+      returned.
+
     Example::
 
         >>> from django.contrib.flatpages.models import FlatPage
@@ -238,13 +253,17 @@ def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
         >>>
         >>> page = FlatPage.objects.create(title='Some page', path='/some/page/')
         >>> joe = User.objects.create_user('joe', 'joe@example.com', 'joesecret')
+        >>> dan = User.objects.create_user('dan', 'dan@example.com', 'dansecret')
         >>> assign_perm('change_flatpage', joe, page)
+        >>> assign_perm('delete_flatpage', dan, page)
         >>>
         >>> get_users_with_perms(page)
-        [<User: joe>]
+        [<User: joe>, <User: dan>]
         >>>
         >>> get_users_with_perms(page, attach_perms=True)
-        {<User: joe>: [u'change_flatpage']}
+        {<User: joe>: [u'change_flatpage'], <User: dan>: [u'delete_flatpage']}
+        >>> get_users_with_perms(page, only_with_perms_in=['change_flatpage'])
+        [<User: joe>]
 
     """
     ctype = get_content_type(obj)
@@ -261,6 +280,11 @@ def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
         else:
             user_filters = {'%s__content_object' % related_name: obj}
         qset = Q(**user_filters)
+        if only_with_perms_in is not None:
+            permission_ids = Permission.objects.filter(content_type=ctype, codename__in=only_with_perms_in).values_list('id', flat=True)
+            qset &= Q(**{
+                '%s__permission_id__in' % related_name: permission_ids,
+                })
         if with_group_users:
             group_model = get_group_obj_perms_model(obj)
             group_rel_name = group_model.group.field.related_query_name()
@@ -273,6 +297,10 @@ def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
                 group_filters = {
                     'groups__%s__content_object' % group_rel_name: obj,
                 }
+            if only_with_perms_in is not None:
+                group_filters.update({
+                    'groups__%s__permission_id__in' % group_rel_name: permission_ids,
+                    })
             qset = qset | Q(**group_filters)
         if with_superusers:
             qset = qset | Q(is_superuser=True)
@@ -282,6 +310,7 @@ def get_users_with_perms(obj, attach_perms=False, with_superusers=False,
         users = {}
         for user in get_users_with_perms(obj,
                                          with_group_users=with_group_users,
+                                         only_with_perms_in=only_with_perms_in,
                                          with_superusers=with_superusers):
             # TODO: Support the case of set with_group_users but not with_superusers.
             if with_group_users or with_superusers:
@@ -500,7 +529,7 @@ def get_objects_for_user(user, perms, klass=None, use_groups=True, any_perm=Fals
     # Check if the user is anonymous. The
     # django.contrib.auth.models.AnonymousUser object doesn't work for queries
     # and it's nice to be able to pass in request.user blindly.
-    if is_anonymous(user):
+    if user.is_anonymous:
         user = get_anonymous_user()
 
     global_perms = set()
