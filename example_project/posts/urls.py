@@ -1,8 +1,8 @@
-from guardian.compat import url, patterns
+from django.urls import path
 
+from posts import views
 
-urlpatterns = patterns('posts.views',
-    url(r'^$', view='post_list', name='posts_post_list'),
-    url(r'^(?P<slug>[-\w]+)/$', view='post_detail', name='posts_post_detail'),
-)
-
+urlpatterns = [
+    path('', views.post_list, name='posts_post_list'),
+    path('<slug:slug>', views.post_detail, name='posts_post_detail'),
+]

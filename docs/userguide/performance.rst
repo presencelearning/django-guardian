@@ -4,7 +4,7 @@ Performance tuning
 ===================
 
 It is important to remember that by default ``django-guardian`` uses generic
-foreign keys to retain relation with any Django model. For most cases it's
+foreign keys to retain relation with any Django model. For most cases, it's
 probably good enough, however if we have a lot of queries being spanned and
 our database seems to be choking it might be a good choice to use *direct*
 foreign keys. Let's start with quick overview of how generic solution work and
@@ -27,7 +27,7 @@ other models:
 
 .. seealso::
 
-    https://docs.djangoproject.com/en/1.4/ref/contrib/contenttypes/#generic-relations
+    https://docs.djangoproject.com/en/stable/ref/contrib/contenttypes/#generic-relations
 
 Let's consider following model:
 
@@ -60,8 +60,8 @@ Something similar to:
 
 
 
-As there are no real foreing keys pointing at the target model this solution
-might not be enough for all cases. In example if we try to build an issues
+As there are no real foreign keys pointing at the target model, this solution
+might not be enough for all cases. For example, if we try to build an issues
 tracking service and we'd like to be able to support thousands of users and
 their project/tickets, object level permission checks can be slow with this
 generic solution.
@@ -88,10 +88,10 @@ models:
         name = models.CharField(max_length=128, unique=True)
 
     class ProjectUserObjectPermission(UserObjectPermissionBase):
-        content_object = models.ForeignKey(Project)
+        content_object = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     class ProjectGroupObjectPermission(GroupObjectPermissionBase):
-        content_object = models.ForeignKey(Project)
+        content_object = models.ForeignKey(Project, on_delete=models.CASCADE)
 
 
 .. important::
@@ -99,13 +99,48 @@ models:
    ``content_object`` as underlying queries depends on it.
 
 
-from now on ``guardian`` will figure out that ``Project`` model has direct
+From now on, ``guardian`` will figure out that ``Project`` model has direct
 relation for user/group object permissions and will use those models. It is
-also possible to use only user or only group based direct relation, however it
+also possible to use only user or only group-based direct relation, however it
 is discouraged (it's not consistent and might be a quick road to hell from the
-mainteinence point of view, especially).
+maintainence point of view, especially).
+
+To temporarily disable the detection of this direct relation model, add
+``enabled = False`` to the object permission model classes. This is useful to
+allow the ORM to create the tables for you and for you to migrate data from the
+generic model tables before using the direct models.
 
 .. note::
    By defining direct relation models we can also tweak that object permission
-   model, i.e. by adding some fields
+   model, i.e. by adding some fields.
 
+
+.. _performance-prefetch:
+
+Prefetching permissions
+-----------------------
+
+.. versionadded:: 1.4.3
+
+Naively looping through objects and checking permissions on each one using
+``has_perms`` results in a permissions lookup in the database for each object.
+Large numbers of objects therefore produce large numbers of database queries
+which can considerably slow down your app. To avoid this, create an
+``ObjectPermissionChecker`` and use its ``prefetch_perms`` method before
+looping through the objects. This will do a single lookup for all the objects
+and cache the results.
+
+.. code-block:: python
+
+    from guardian.core import ObjectPermissionChecker
+
+    joe = User.objects.get(username='joe')
+    projects = Project.objects.all()
+    checker = ObjectPermissionChecker(joe)
+
+    # Prefetch the permissions
+    checker.prefetch_perms(projects)
+
+    for project in projects:
+        # No additional lookups needed to check permissions
+        checker.has_perm('change_project', project)

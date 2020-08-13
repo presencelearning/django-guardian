@@ -5,60 +5,23 @@
     {% load guardian_tags %}
 
 """
-from __future__ import unicode_literals
 from django import template
-from django.contrib.auth.models import Group, AnonymousUser
-from django.template import get_library
-from django.template import InvalidTemplateLibrary
-from django.template.defaulttags import LoadNode
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser, Group
 
-from guardian.compat import get_user_model
-from guardian.exceptions import NotUserNorGroup
 from guardian.core import ObjectPermissionChecker
+from guardian.exceptions import NotUserNorGroup
 
 register = template.Library()
 
 
-@register.tag
-def friendly_load(parser, token):
-    '''
-    Tries to load a custom template tag set. Non existing tag libraries
-    are ignored.
-
-    This means that, if used in conjuction with ``if_has_tag``, you can try to
-    load the comments template tag library to enable comments even if the
-    comments framework is not installed.
-
-    For example::
-
-        {% load friendly_loader %}
-        {% friendly_load comments webdesign %}
-
-        {% if_has_tag render_comment_list %}
-            {% render_comment_list for obj %}
-        {% else %}
-            {% if_has_tag lorem %}
-                {% lorem %}
-            {% endif_has_tag %}
-        {% endif_has_tag %}
-    '''
-    bits = token.contents.split()
-    for taglib in bits[1:]:
-        try:
-            lib = get_library(taglib)
-            parser.add_library(lib)
-        except InvalidTemplateLibrary:
-            pass
-    return LoadNode()
-
-
-
-
 class ObjectPermissionsNode(template.Node):
-    def __init__(self, for_whom, obj, context_var):
+
+    def __init__(self, for_whom, obj, context_var, checker=None):
         self.for_whom = template.Variable(for_whom)
         self.obj = template.Variable(obj)
         self.context_var = context_var
+        self.checker = template.Variable(checker) if checker else None
 
     def render(self, context):
         for_whom = self.for_whom.resolve(context)
@@ -73,16 +36,17 @@ class ObjectPermissionsNode(template.Node):
             self.group = for_whom
         else:
             raise NotUserNorGroup("User or Group instance required (got %s)"
-                % for_whom.__class__)
+                                  % for_whom.__class__)
         obj = self.obj.resolve(context)
         if not obj:
             return ''
 
-        check = ObjectPermissionChecker(for_whom)
+        check = self.checker.resolve(context) if self.checker else ObjectPermissionChecker(for_whom)
         perms = check.get_perms(obj)
 
         context[self.context_var] = perms
         return ''
+
 
 @register.tag
 def get_obj_perms(parser, token):
@@ -118,17 +82,17 @@ def get_obj_perms(parser, token):
 
     """
     bits = token.split_contents()
-    format = '{% get_obj_perms user/group for obj as "context_var" %}'
-    if len(bits) != 6 or bits[2] != 'for' or bits[4] != 'as':
+    format = '{% get_obj_perms user/group for obj as "context_var" perm_checker %}'
+    if not (6 <= len(bits) <= 7) or bits[2] != 'for' or bits[4] != 'as':
         raise template.TemplateSyntaxError("get_obj_perms tag should be in "
-            "format: %s" % format)
+                                           "format: %s" % format)
 
     for_whom = bits[1]
     obj = bits[3]
     context_var = bits[5]
     if context_var[0] != context_var[-1] or context_var[0] not in ('"', "'"):
         raise template.TemplateSyntaxError("get_obj_perms tag's context_var "
-            "argument should be in quotes")
+                                           "argument should be in quotes")
     context_var = context_var[1:-1]
-    return ObjectPermissionsNode(for_whom, obj, context_var)
-
+    checker = bits[6] if len(bits) == 7 else None
+    return ObjectPermissionsNode(for_whom, obj, context_var, checker)

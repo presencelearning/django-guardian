@@ -1,17 +1,29 @@
 {% extends "admin/change_form.html" %}
 {% load i18n %}
 {% load guardian_tags %}
-{% friendly_load admin_static %}
+{% load static %}
+{% load admin_urls %}
 
-{% block breadcrumbs %}{% if not is_popup %}
+{% block breadcrumbs %}
 <ul>
-    <li><a href="../../../../">{% trans "Home" %}</a></li>
-    <li><a href="../../../">{% trans app_label|capfirst|escape %}</a></li>
-    <li>{% if has_change_permission %}<a href="../../">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</li>
-    <li>{% if has_change_permission %}<a href="../">{{ original|truncatewords:"18" }}</a>{% else %}{{ original|truncatewords:"18" }}{% endif %}</li>
-    <li>{% trans "Object permissions" %}</li>
+    <li><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+    <li><a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a></li>
+    {% if has_change_permission %}
+        <li>
+            {% url opts|admin_urlname:'changelist' as changelist_url %}
+            <a href="{% add_preserved_filters changelist_url %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        </li>
+        <li>
+            {% url opts|admin_urlname:'change' object.pk|admin_urlquote as object_url %}
+            <a href="{% add_preserved_filters object_url %}">{{ object|truncatewords:"18" }}</a>
+        </li>
+    {% else %}
+        <li>{{ opts.verbose_name_plural|capfirst }}</li>
+        <li>{{ original|truncatewords:"18" }}</li>
+    {% endif %}
+    <li>{% trans 'Object permissions' %}</li>
 </ul>
-{% endif %}{% endblock %}
+{% endblock %}
 
 {% block content %}
 <form action="." method="post">
@@ -27,7 +39,7 @@
             <div class="l-2c-fluid l-d-4">
                 <div class="c-1"><label for="user-permissions" class="required">{% trans "User permissions" %}</label></div>
                 <div class="c-2">
-                    <table id="user-permissions" class="object-perms">
+                    <table id="user-permissions" class="grp-table object-perms">
                         <thead>
                             <tr>
                                 <th>{% trans "User" %}</th>
@@ -44,9 +56,9 @@
                                 {% for perm in model_perms %}
                                 <td>
                                     {% if perm.codename in user_perms %}
-                                    <img src="{% static "admin/img/icon-yes.gif" %}"/>
+                                    <img src="{% static "guardian/img/icon-yes.svg" %}"/>
                                     {% else %}
-                                    <img src="{% static "admin/img/icon-no.gif" %}"/>
+                                    <img src="{% static "guardian/img/icon-no.svg" %}"/>
                                     {% endif %}
                                 </td>
                                 {% endfor %}
@@ -88,7 +100,7 @@
             <div class="l-2c-fluid l-d-4">
                 <div class="c-1"><label for="group-permissions" class="required">{% trans "Group permissions" %}</label></div>
                 <div class="c-2">
-                    <table id="group-permissions" class="object-perms">
+                    <table id="group-permissions" class="grp-table object-perms">
                         <thead>
                             <tr>
                                 <th>{% trans "Group" %}</th>
@@ -105,9 +117,9 @@
                                 {% for perm in model_perms %}
                                 <td>
                                     {% if perm.codename in group_perms %}
-                                    <img src="{% static "admin/img/icon-yes.gif" %}"/>
+                                    <img src="{% static "guardian/img/icon-yes.svg" %}"/>
                                     {% else %}
-                                    <img src="{% static "admin/img/icon-no.gif" %}"/>
+                                    <img src="{% static "guardian/img/icon-no.svg" %}"/>
                                     {% endif %}
                                 </td>
                                 {% endfor %}
@@ -137,5 +149,3 @@
     </div>
 </form>
 {% endblock %}
-
-

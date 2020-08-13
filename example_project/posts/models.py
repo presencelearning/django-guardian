@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 
 
 class Post(models.Model):
@@ -8,15 +9,14 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
+        default_permissions = ('add', 'change', 'delete')
         permissions = (
             ('view_post', 'Can view post'),
         )
         get_latest_by = 'created_at'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.title
 
-    @models.permalink
     def get_absolute_url(self):
-        return ('posts_post_detail', (), {'slug': self.slug})
-
+        return reverse('posts_post_detail', args=(), kwargs={'slug': self.slug})

@@ -3,14 +3,14 @@
 Check object permissions
 ========================
 
-Once we have :ref:`assigned some permissions <assign>` we can get into detail
-about verifying permissions of user or group.
+Once we have :ref:`assigned some permissions <assign>`, we can get into detail
+about verifying permissions of a user or group.
 
 Standard way
 ------------
 
-Normally to check if Joe is permitted to change ``Site`` objects we do this by
-calling ``has_perm`` method on an ``User`` instance::
+Normally to check if Joe is permitted to change ``Site`` objects we
+call ``has_perm`` method on an ``User`` instance::
 
     >>> joe.has_perm('sites.change_site')
     False
@@ -22,7 +22,7 @@ additional argument::
     >>> joe.has_perm('sites.change_site', site)
     False
 
-Lets assign permission and check again::
+Let's assign permission and check again::
 
     >>> from guardian.shortcuts import assign_perm
     >>> assign_perm('sites.change_site', joe, site)
@@ -31,20 +31,20 @@ Lets assign permission and check again::
     >>> joe.has_perm('sites.change_site', site)
     True
 
-This uses backend we have specified at settings module (see
-:ref:`configuration`). More on a backend itself can be found at
+This uses the backend we have specified at settings module (see
+:ref:`configuration`). More on the backend can be found at
 :class:`Backend's API <guardian.backends.ObjectPermissionBackend>`.
 
 Inside views
 ------------
 
-Besides of standard ``has_perm`` method ``django-guardian`` provides some useful
-helpers for object permission checks.
+Aside from the standard ``has_perm`` method, ``django-guardian``
+provides some useful helpers for object permission checks.
 
 get_perms
 ~~~~~~~~~
 
-To check permissions we can use quick-and-dirty shortcut::
+To check permissions we can use a quick-and-dirty shortcut::
 
     >>> from guardian.shortcuts import get_perms
     >>>
@@ -57,9 +57,17 @@ To check permissions we can use quick-and-dirty shortcut::
 
 It is probably better to use standard ``has_perm`` method. But for ``Group``
 instances it is not as easy and ``get_perms`` could be handy here as it accepts
-both ``User`` and ``Group`` instances. And if we need to do some more work we
-can use lower level ``ObjectPermissionChecker`` class which is described in next
-section.
+both ``User`` and ``Group`` instances. If we need to do some more work, we
+can use lower level ``ObjectPermissionChecker`` class which is described in 
+the next section.
+
+There is also ``get_user_perms`` to get permissions assigned directly to the user
+(and not inherited from its superuser status or group membership).
+Similarly, ``get_group_perms`` returns only permissions which are inferred
+through user's group membership.
+``get_user_perms`` and ``get_group_perms`` are useful when you care what permissions
+user has assigned, while ``has_perm`` is useful when you care about user's effective
+permissions.
 
 get_objects_for_user
 ~~~~~~~~~~~~~~~~~~~~
@@ -72,14 +80,14 @@ could be easily achieved using :shortcut:`get_objects_for_user`:
 
 .. code-block:: python
 
-    from django.shortcuts import render_to_response
+    from django.shortcuts import render
     from django.template import RequestContext
     from projects.models import Project
     from guardian.shortcuts import get_objects_for_user
 
     def user_dashboard(request, template_name='projects/dashboard.html'):
         projects = get_objects_for_user(request.user, 'projects.view_project')
-        return render_to_response(template_name, {'projects': projects},
+        return render(request, template_name, {'projects': projects},
             RequestContext(request))
 
 It is also possible to provide list of permissions rather than single string,
@@ -93,7 +101,7 @@ with (default) or without user's groups permissions.
 ObjectPermissionChecker
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-At the ``core`` module of ``django-guardian`` there is a 
+At the ``core`` module of ``django-guardian``, there is a 
 :class:`guardian.core.ObjectPermissionChecker` which checks permission of
 user/group for specific object. It caches results so it may be used at part of
 codes where we check permissions more than once.
@@ -177,5 +185,5 @@ get_obj_perms
 .. autofunction:: guardian.templatetags.guardian_tags.get_obj_perms
    :noindex:
 
-.. _django-authority: http://bitbucket.org/jezdez/django-authority/
+.. _django-authority: https://github.com/jazzband/django-authority
 

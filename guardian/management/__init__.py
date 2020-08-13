@@ -1,12 +1,8 @@
-from __future__ import unicode_literals
-
-import django
+from django.contrib.auth import get_user_model
 from django.db.models import signals
-
-from guardian import models as guardian_app
+from django.utils.module_loading import import_string
+from django.db import router
 from guardian.conf import settings as guardian_settings
-from guardian.compat import get_user_model
-from guardian.compat import import_string
 
 
 def get_init_anonymous_user(User):
@@ -17,9 +13,11 @@ def get_init_anonymous_user(User):
     :param User: User model - result of ``django.contrib.auth.get_user_model``.
     """
     kwargs = {
-        User.USERNAME_FIELD: guardian_settings.ANONYMOUS_DEFAULT_USERNAME_VALUE
+        User.USERNAME_FIELD: guardian_settings.ANONYMOUS_USER_NAME
     }
-    return User(**kwargs)
+    user = User(**kwargs)
+    user.set_unusable_password()
+    return user
 
 
 def create_anonymous_user(sender, **kwargs):
@@ -27,22 +25,20 @@ def create_anonymous_user(sender, **kwargs):
     Creates anonymous User instance with id and username from settings.
     """
     User = get_user_model()
+    if not router.allow_migrate_model(kwargs['using'], User):
+        return
     try:
-        User.objects.get(pk=guardian_settings.ANONYMOUS_USER_ID)
+        lookup = {User.USERNAME_FIELD: guardian_settings.ANONYMOUS_USER_NAME}
+        User.objects.using(kwargs['using']).get(**lookup)
     except User.DoesNotExist:
-        if django.VERSION >= (1, 5):
-            retrieve_anonymous_functon = import_string(
-                guardian_settings.GET_INIT_ANONYMOUS_USER)
-            user = retrieve_anonymous_functon(User)
-            # Always set pk to the one pointed at settings
-            user.pk = guardian_settings.ANONYMOUS_USER_ID
-            user.save()
-        else:
-            User.objects.create(pk=guardian_settings.ANONYMOUS_USER_ID,
-                username=guardian_settings.ANONYMOUS_DEFAULT_USERNAME_VALUE)
+        retrieve_anonymous_function = import_string(
+            guardian_settings.GET_INIT_ANONYMOUS_USER)
+        user = retrieve_anonymous_function(User)
+        user.save(using=kwargs['using'])
 
 # Only create an anonymous user if support is enabled.
-if guardian_settings.ANONYMOUS_USER_ID is not None:
-    signals.post_syncdb.connect(create_anonymous_user, sender=guardian_app,
-        dispatch_uid="guardian.management.create_anonymous_user")
-
+if guardian_settings.ANONYMOUS_USER_NAME is not None:
+    from django.apps import apps
+    guardian_app = apps.get_app_config('guardian')
+    signals.post_migrate.connect(create_anonymous_user, sender=guardian_app,
+                                 dispatch_uid="guardian.management.create_anonymous_user")

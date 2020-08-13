@@ -24,7 +24,7 @@ might happen more frequently.
 How to file a ticket?
 ---------------------
 
-Just go to https://github.com/lukaszb/django-guardian/issues and create new
+Just go to https://github.com/django-guardian/django-guardian/issues and create new
 one.
 
 
@@ -33,13 +33,13 @@ How do I get involved?
 
 It's simple! If you want to fix a bug, extend documentation or whatever you
 think is appropriate for the project and involves changes, just fork the
-project at github (https://github.com/lukaszb/django-guardian), create a
+project at github (https://github.com/django-guardian/django-guardian), create a
 separate branch, hack on it, publish changes at your fork and create a pull
 request.
 
 Here is a quick how to:
 
-1. Fork a project: https://github.com/lukaszb/django-guardian/fork
+1. Fork a project: https://github.com/django-guardian/django-guardian/fork
 2. Checkout project to your local machine::
 
        $ git clone git@github.com:YOUR_NAME/django-guardian.git
@@ -74,3 +74,17 @@ We usually put an explonation while we close issue or PR. It might be for
 various reasons, i.e. there were no reply for over a month after our last
 comment, there were no tests for the changes etc.
 
+
+How to do a new release?
+----------------------------
+
+To enroll a new release you should perform the following task:
+
+* Ensure file ``CHANGES`` reflects all important changes.
+* Ensure file ``CHANGES`` includes a new version identifier and current release date.
+* Execute ``bumpversion patch`` (or accordinly - see `Semantic Versioning 2.0 <http://semver.org/>`_ ) to reflects changes in codebase.
+* Commit changes of codebase, e.g. ``git commit -m "Release 1.4.8" -a``.
+* Tag a new release, e.g. ``git tag "v1.4.8"``.
+* Push new tag to repo - ``git push origin --tags``.
+* Build a new release - ``python3 setup.py sdist bdist_wheel``
+* Push a new release to PyPI - ``twine upload``.

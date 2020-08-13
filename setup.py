@@ -1,56 +1,52 @@
 import os
-import sys
-from setuptools import setup, find_packages
+from setuptools import setup
 from extras import RunFlakesCommand
 
-guardian = __import__('guardian')
+
+version = '2.3.0'
+
 readme_file = os.path.join(os.path.dirname(__file__), 'README.rst')
-try:
-    long_description = open(readme_file).read()
-except IOError as err:
-    sys.stderr.write("[ERROR] Cannot find file specified as "
-        "``long_description`` (%s)\n" % readme_file)
-    sys.exit(1)
-
-tests_require = ['mock']
-
-extra_kwargs = {}
-if sys.version_info >= (3,):
-    extra_kwargs = {'use_2to3': True}
-elif sys.version_info < (2, 7):
-    tests_require.append('unittest2')
+with open(readme_file) as f:
+    long_description = f.read()
 
 setup(
-    name = 'django-guardian',
-    version = guardian.get_version(),
-    url = 'http://github.com/lukaszb/django-guardian',
-    author = 'Lukasz Balcerzak',
-    author_email = 'lukaszbalcerzak@gmail.com',
-    download_url='https://github.com/lukaszb/django-guardian/tags',
-    description = guardian.__doc__.strip(),
-    long_description = long_description,
-    zip_safe = False,
-    packages = find_packages(),
-    include_package_data = True,
-    license = 'BSD',
-    install_requires = [
-        'Django',
-        'six',
+    name='django-guardian',
+    version=version,
+    python_requires='>=3.5',
+    url='http://github.com/django-guardian/django-guardian',
+    author='Lukasz Balcerzak',
+    author_email='lukaszbalcerzak@gmail.com',
+    download_url='https://github.com/django-guardian/django-guardian/tags',
+    description="Implementation of per object permissions for Django.",
+    long_description=long_description,
+    zip_safe=False,
+    packages=[
+        'guardian', 'guardian.conf', 'guardian.management',
+        'guardian.migrations', 'guardian.templatetags', 'guardian.testapp',
+        'guardian.management.commands', 'guardian.testapp.migrations',
+        'guardian.testapp.tests'
     ],
-    tests_require=tests_require,
-    classifiers = ['Development Status :: 5 - Production/Stable',
-                   'Environment :: Web Environment',
-                   'Framework :: Django',
-                   'Intended Audience :: Developers',
-                   'License :: OSI Approved :: BSD License',
-                   'Operating System :: OS Independent',
-                   'Programming Language :: Python',
-                   'Topic :: Security',
-                   'Programming Language :: Python :: 2',
-                   'Programming Language :: Python :: 3',
-    ],
+    include_package_data=True,
+    license='BSD',
+    install_requires=["Django>=2.2"],
+    tests_require=['mock', 'django-environ', 'pytest', 'pytest-django'],
+    classifiers=['Development Status :: 5 - Production/Stable',
+                 'Environment :: Web Environment',
+                 'Framework :: Django',
+                 'Framework :: Django :: 2.2',
+                 'Framework :: Django :: 3.0',
+                 'Framework :: Django :: 3.1',
+                 'Intended Audience :: Developers',
+                 'License :: OSI Approved :: BSD License',
+                 'Operating System :: OS Independent',
+                 'Programming Language :: Python',
+                 'Topic :: Security',
+                 'Programming Language :: Python :: 3.5',
+                 'Programming Language :: Python :: 3.6',
+                 'Programming Language :: Python :: 3.7',
+                 'Programming Language :: Python :: 3.8',
+                 'Programming Language :: Python :: 3 :: Only',
+                 ],
     test_suite='tests.main',
     cmdclass={'flakes': RunFlakesCommand},
-    **extra_kwargs
 )
-

@@ -31,14 +31,13 @@ models within the admin. In example, look at following model:
 
         class Meta:
             permissions = (
-                ('view_post', 'Can view post'),
+                ('hide_post', 'Can hide post'),
             )
             get_latest_by = 'created_at'
 
-        def __unicode__(self):
+        def __str__(self):
             return self.title
 
-        @models.permalink
         def get_absolute_url(self):
             return {'post_slug': self.slug}
 
@@ -49,7 +48,7 @@ do this as follows within ``admin.py`` file of our application:
 
     from django.contrib import admin
 
-    from example_project.posts.models import Post
+    from posts.models import Post
 
 
     class PostAdmin(admin.ModelAdmin):
@@ -70,7 +69,7 @@ Our code could look as follows:
 
     from django.contrib import admin
 
-    from example_project.posts.models import Post
+    from posts.models import Post
 
     from guardian.admin import GuardedModelAdmin
 
@@ -91,4 +90,3 @@ permissions.
 .. note::
    Example above is shipped with ``django-guardian`` package with the example
    project.
-
