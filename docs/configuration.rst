@@ -21,26 +21,26 @@ and hook guardian's authentication backend::
 
 .. note::
    Once project is configured to work with ``django-guardian``, calling
-   ``syncdb`` management command would create ``User`` instance for
+   ``migrate`` management command would create ``User`` instance for
    anonymous user support (with name of ``AnonymousUser``).
 
 .. note::
 
-   The Guardian anonymous user is different to the Django Anonymous user.  The
+   The Guardian anonymous user is different from the Django Anonymous user.  The
    Django Anonymous user does not have an entry in the database, however the
    Guardian anonymous user does. This means that the following code will return
    an unexpected result:
 
    .. code-block:: python
 
-      from guardian.compat import get_user_model
+      from django.contrib.auth import get_user_model
       User = get_user_model()
       anon = User.get_anonymous()
-      anon.is_anonymous()   # returns False
+      anon.is_anonymous  # returns False
 
 We can change id to whatever we like. Project should be now ready to use object
 permissions.
- 
+
 
 Optional settings
 =================
@@ -114,7 +114,7 @@ environment.
 
 Defaults to ``"AnonymousUser"``.
 
-.. seealso:: https://docs.djangoproject.com/en/1.5/topics/auth/customizing/#substituting-a-custom-user-model
+.. seealso:: https://docs.djangoproject.com/en/stable/topics/auth/customizing/#substituting-a-custom-user-model
 
 
 .. setting:: GUARDIAN_GET_INIT_ANONYMOUS_USER
@@ -127,7 +127,7 @@ GUARDIAN_GET_INIT_ANONYMOUS_USER
 Guardian supports object level permissions for anonymous users, however when
 in our project we use custom User model, default function might fail. This can
 lead to issues as ``guardian`` tries to create anonymous user after each
-``syncdb`` call. Object that is going to be created is retrieved using function
+``migrate`` call. Object that is going to be created is retrieved using function
 pointed by this setting. Once retrieved, ``save`` method would be called on
 that instance.
 
@@ -153,3 +153,79 @@ polymorphic models and the regular model ``ContentType`` for non-polymorphic
 classes.
 
 Defaults to ``"guardian.ctypes.get_default_content_type"``.
+
+GUARDIAN_AUTO_PREFETCH
+-------------------------
+
+.. versionadded:: 2.x.x
+
+For vanilla deployments using standard ``ContentType`` interfaces and default
+``UserObjectPermission`` or ``GroupObjectPermission`` models, Guardian can automatically
+prefetch all User permissions for all object types. This can be useful when manual prefetching
+is not feasible due to a large number of model types resulting in O(n) queries. This setting may
+not be compatible with non-standard deployments, and should only be used when non-prefetched
+invocations would result in a large number of queries or when latency is particularly important.
+
+Defaults to ``False``.
+
+GUARDIAN_USER_OBJ_PERMS_MODEL
+-------------------------
+
+.. versionadded:: 2.x.x
+
+Allows the default ``UserObjectPermission`` model to be overridden by a custom model.  The custom model needs to minimally inherit from ``UserObjectPermissionAbstract``.  This is only automatically supported when set at the start of a project. This is NOT supported after the start of a project.  If the dependent libraries do not call ``UserObjectPermission = get_user_obj_perms_model()`` for the model, then the dependent library does not support this feature.
+
+Define a custom user object permission model
+::
+   from guardian.models import UserObjectPermissionAbstract
+   class BigUserObjectPermission(UserObjectPermissionAbstract):
+      id = models.BigAutoField(editable=False, unique=True, primary_key=True)
+      class Meta(UserObjectPermissionAbstract.Meta):
+         abstract = False
+         indexes = [
+            *UserObjectPermissionAbstract.Meta.indexes,
+            models.Index(fields=['content_type', 'object_pk', 'user']),
+         ]
+
+
+Configure guardian to use the custom model in ``settings.py``
+::
+   GUARDIAN_USER_OBJ_PERMS_MODEL = 'myapp.BigUserObjectPermission'
+
+To access the model use ``get_user_obj_perms_model()`` with no parameters
+::
+   from guardian.utils import get_user_obj_perms_model
+   UserObjectPermission = get_user_obj_perms_model()
+
+Defaults to ``'guardian.UserObjectPermission'``.
+
+GUARDIAN_GROUP_OBJ_PERMS_MODEL
+-------------------------
+
+.. versionadded:: 2.x.x
+
+Allows the default ``GroupObjectPermission`` model to be overridden by a custom model.  The custom model needs to minimally inherit from ``GroupObjectPermissionAbstract``.  This is only automatically supported when set at the start of a project. This is NOT supported after the start of a project.  If the dependent libraries do not call ``GroupObjectPermission = get_user_obj_perms_model()`` for the model, then the dependent library does not support this feature.
+
+Define a custom user object permission model
+::
+   from guardian.models import GroupObjectPermissionAbstract
+   class BigGroupObjectPermission(GroupObjectPermissionAbstract):
+      id = models.BigAutoField(editable=False, unique=True, primary_key=True)
+      class Meta(GroupObjectPermissionAbstract.Meta):
+         abstract = False
+         indexes = [
+            *GroupObjectPermissionAbstract.Meta.indexes,
+            models.Index(fields=['content_type', 'object_pk', 'group']),
+         ]
+
+
+Configure guardian to use the custom model in `settings.py`
+::
+   GUARDIAN_GROUP_OBJ_PERMS_MODEL = 'myapp.BigGroupObjectPermission'
+
+To access the model use ``get_user_obj_perms_model()`` with no parameters
+::
+   from guardian.utils import get_user_obj_perms_model
+   GroupObjectPermission = get_user_obj_perms_model()
+
+Defaults to ``'guardian.GroupObjectPermission'``.

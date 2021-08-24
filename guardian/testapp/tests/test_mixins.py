@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import PermissionDenied
@@ -9,12 +8,11 @@ from django.test.client import RequestFactory
 from django.views.generic import ListView
 from django.views.generic import View
 
-from guardian.compat import get_user_model
+from guardian.shortcuts import assign_perm
+from unittest import mock
 from guardian.mixins import LoginRequiredMixin
 from guardian.mixins import PermissionListMixin
 from guardian.mixins import PermissionRequiredMixin
-from guardian.shortcuts import assign_perm
-from unittest import mock
 
 from ..models import Post
 
@@ -214,3 +212,26 @@ class TestViewMixins(TestCase):
 
         response = view(request)
         self.assertContains(response, b'foo-post-title')
+
+    def test_any_perm_parameter(self):
+        request = self.factory.get('/')
+        request.user = self.user
+        request.user.add_obj_perm('view_post', self.post)
+        self.assertIs(request.user.has_perm('view_post', self.post), True)
+        self.assertIs(request.user.has_perm('change_post', self.post), False)
+        # success way
+        view = TestView.as_view(
+            any_perm=True,
+            permission_required=['change_post', 'view_post'],
+            object=self.post,
+        )
+        with self.assertRaises(DatabaseRemovedError):
+            view(request)
+        # fail way
+        view = TestView.as_view(
+            any_perm=False,
+            permission_required=['change_post', 'view_post'],
+            object=self.post,
+        )
+        response = view(request)
+        self.assertEqual(response.status_code, 302)

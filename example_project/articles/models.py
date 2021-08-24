@@ -1,7 +1,5 @@
-from __future__ import unicode_literals
-
 from django.db import models
-from guardian.compat import reverse
+from django.urls import reverse
 
 
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
@@ -14,12 +12,13 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
+        default_permissions = ('add', 'change', 'delete')
         permissions = (
             ('view_article', 'Can view article'),
         )
         get_latest_by = 'created_at'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.title
 
     def get_absolute_url(self):
@@ -32,3 +31,26 @@ class ArticleUserObjectPermission(UserObjectPermissionBase):
 
 class ArticleGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(Article, on_delete=models.CASCADE)
+
+
+from guardian.models import UserObjectPermissionAbstract, GroupObjectPermissionAbstract
+
+class BigUserObjectPermission(UserObjectPermissionAbstract):
+    id = models.BigAutoField(editable=False, unique=True, primary_key=True)
+    class Meta(UserObjectPermissionAbstract.Meta):
+        abstract = False
+        indexes = [
+            *UserObjectPermissionAbstract.Meta.indexes,
+            models.Index(fields=['content_type', 'object_pk', 'user']),
+        ]
+
+
+class BigGroupObjectPermission(GroupObjectPermissionAbstract):
+    id = models.BigAutoField(editable=False, unique=True, primary_key=True)
+    class Meta(GroupObjectPermissionAbstract.Meta):
+        abstract = False
+        indexes = [
+            *GroupObjectPermissionAbstract.Meta.indexes,
+            models.Index(fields=['content_type', 'object_pk', 'group']),
+        ]
+

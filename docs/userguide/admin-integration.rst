@@ -31,11 +31,11 @@ models within the admin. In example, look at following model:
 
         class Meta:
             permissions = (
-                ('view_post', 'Can view post'),
+                ('hide_post', 'Can hide post'),
             )
             get_latest_by = 'created_at'
 
-        def __unicode__(self):
+        def __str__(self):
             return self.title
 
         def get_absolute_url(self):
@@ -90,4 +90,3 @@ permissions.
 .. note::
    Example above is shipped with ``django-guardian`` package with the example
    project.
-

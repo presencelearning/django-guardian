@@ -1,9 +1,8 @@
-from __future__ import unicode_literals
-
+from unittest import mock
 import unittest
 
-from unittest import mock
-
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
@@ -14,11 +13,8 @@ from django.test import TestCase
 import guardian
 
 from guardian.backends import ObjectPermissionBackend
-from guardian.compat import basestring
-from guardian.compat import get_user_model
 from guardian.compat import get_user_model_path
 from guardian.compat import get_user_permission_codename
-from guardian.compat import unicode
 from guardian.exceptions import GuardianError
 from guardian.exceptions import NotUserNorGroup
 from guardian.exceptions import ObjectNotPersisted
@@ -33,7 +29,7 @@ user_model_path = get_user_model_path()
 class UserPermissionTests(TestDataMixin, TestCase):
 
     def setUp(self):
-        super(UserPermissionTests, self).setUp()
+        super().setUp()
         self.user = User.objects.get(username='jack')
         self.ctype = ContentType.objects.create(
             model='bar', app_label='fake-for-guardian-tests')
@@ -108,12 +104,6 @@ class UserPermissionTests(TestDataMixin, TestCase):
         self.assertRaises(ValidationError, UserObjectPermission.objects.create,
                           **create_info)
 
-    def test_unicode(self):
-        codename = get_user_permission_codename('change')
-        obj_perm = UserObjectPermission.objects.assign_perm(codename,
-                                                            self.user, self.user)
-        self.assertTrue(isinstance(obj_perm.__unicode__(), unicode))
-
     def test_errors(self):
         not_saved_user = User(username='not_saved_user')
         codename = get_user_permission_codename('change')
@@ -128,7 +118,7 @@ class UserPermissionTests(TestDataMixin, TestCase):
 class GroupPermissionTests(TestDataMixin, TestCase):
 
     def setUp(self):
-        super(GroupPermissionTests, self).setUp()
+        super().setUp()
         self.user = User.objects.get(username='jack')
         self.group, created = Group.objects.get_or_create(name='jackGroup')
         self.user.groups.add(self.group)
@@ -204,11 +194,6 @@ class GroupPermissionTests(TestDataMixin, TestCase):
         self.assertRaises(ValidationError, GroupObjectPermission.objects.create,
                           **create_info)
 
-    def test_unicode(self):
-        obj_perm = GroupObjectPermission.objects.assign_perm("change_group",
-                                                             self.group, self.group)
-        self.assertTrue(isinstance(obj_perm.__unicode__(), unicode))
-
     def test_errors(self):
         not_saved_group = Group(name='not_saved_group')
         self.assertRaises(ObjectNotPersisted,
@@ -231,8 +216,14 @@ class ObjectPermissionBackendTests(TestCase):
         self.assertTrue(self.backend.supports_inactive_user)
 
     def test_authenticate(self):
-        self.assertEqual(self.backend.authenticate(
-            self.user.username, self.user.password), None)
+        self.assertEqual(
+            self.backend.authenticate(
+                request={},
+                username=self.user.username,
+                password=self.user.password
+            ),
+            None
+        )
 
     def test_has_perm_noobj(self):
         result = self.backend.has_perm(self.user, "change_contenttype")
@@ -270,10 +261,10 @@ class GuardianBaseTests(TestCase):
 
     def test_version(self):
         for x in guardian.VERSION:
-            self.assertTrue(isinstance(x, (int, basestring)))
+            self.assertTrue(isinstance(x, (int, str)))
 
     def test_get_version(self):
-        self.assertTrue(isinstance(guardian.get_version(), basestring))
+        self.assertTrue(isinstance(guardian.get_version(), str))
 
 
 class TestExceptions(TestCase):
@@ -291,10 +282,8 @@ class TestExceptions(TestCase):
 @unittest.skip("test is broken")
 class TestMonkeyPatch(TestCase):
 
-    @mock.patch('guardian.compat.get_user_model')
+    @mock.patch('django.contrib.auth.get_user_model')
     def test_monkey_patch(self, mocked_get_user_model):
-        # Import AbstractUser here as it is only available since Django 1.5
-        from django.contrib.auth.models import AbstractUser
 
         class CustomUserTestClass(AbstractUser):
             pass
@@ -304,6 +293,7 @@ class TestMonkeyPatch(TestCase):
         self.assertFalse(getattr(CustomUserTestClass, 'get_anonymous', False))
         self.assertFalse(getattr(CustomUserTestClass, 'add_obj_perm', False))
         self.assertFalse(getattr(CustomUserTestClass, 'del_obj_perm', False))
+        self.assertFalse(getattr(CustomUserTestClass, 'evict_obj_perms_cache', False))
 
         # Monkey Patch
         guardian.monkey_patch_user()
@@ -311,3 +301,7 @@ class TestMonkeyPatch(TestCase):
         self.assertTrue(getattr(CustomUserTestClass, 'get_anonymous', False))
         self.assertTrue(getattr(CustomUserTestClass, 'add_obj_perm', False))
         self.assertTrue(getattr(CustomUserTestClass, 'del_obj_perm', False))
+        self.assertTrue(getattr(CustomUserTestClass, 'evict_obj_perms_cache', False))
+
+        user = CustomUserTestClass()
+        self.assertFalse(user.evict_obj_perms_cache())
