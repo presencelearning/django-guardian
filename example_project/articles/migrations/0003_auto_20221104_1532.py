@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('guardian', '0009_auto_20221104_1532'),
+        ('guardian', '0008_merge_20221104_1948'),
         ('auth', '0011_update_proxy_permissions'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('articles', '0002_custom_generic_permissions'),
