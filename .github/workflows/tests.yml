@@ -68,8 +68,8 @@ jobs:
           python -m pip install --upgrade --upgrade-strategy=only-if-needed ${PACKAGES[*]};
       - name: Ensure no version conflicts exist
         run: pip check
-      - name: Lint modern PY3 syntax
-        run: find . -name '*.py' | xargs pyupgrade --py3-only
+#      - name: Lint modern PY3 syntax
+#        run: find . -name '*.py' | xargs pyupgrade --py3-only
 
       - name: Code tests (with PostgreSQL)
         run: |
