@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('testapp', '0007_auto_20160309_0245'),
+        ('testapp', '0005_uuidpkmodel'),
     ]
 
     operations = [
