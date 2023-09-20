@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='origin',
+            name='Origin',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('object_pk', models.CharField(max_length=255, verbose_name='object ID')),
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.AlterUniqueTogether(
-            name='origin',
+            name='Origin',
             unique_together={('user', 'group', 'object_pk', 'content_type')},
         ),
     ]
