@@ -34,7 +34,45 @@ GroupObjectPermission = get_group_obj_perms_model()
 UserObjectPermission = get_user_obj_perms_model()
 
 
-def assign_perm(perm, user_or_group, obj=None):
+def to_permission(perm):
+    if not isinstance(perm, Permission):
+        try:
+            app_label, codename = perm.split('.', 1)
+        except ValueError:
+            raise ValueError("For global permissions, first argument must be in"
+                             " format: 'app_label.codename' (is %r)" % perm)
+        perm = Permission.objects.get(content_type__app_label=app_label,
+                                      codename=codename)
+    return perm
+
+
+def assign_perm_from_origin(perm, origin):
+    ''' Assigns permission to the user and content_object in the
+        origin.
+    '''
+    perm = to_permission(perm)
+    model = get_user_obj_perms_model(origin.content_object)
+    return model.objects.assign_perm_from_origin(perm, origin)
+
+
+def assign_perm_from_origins(perm, origins):
+    ''' Assigns permission to the user and content_objects in the
+        iterable origin. The content_object and/or user can be heterogeneous.
+    '''
+    perm = to_permission(perm)
+    by_type = {o.content_type: [] for o in origins}
+    for o in origins:
+        by_type[o.content_type].append(o)
+    assigned_perms = []
+    for t in by_type:
+        origins_for_type = by_type[t]
+        model = get_user_obj_perms_model(origins_for_type[0].content_object)
+        perms = model.objects.bulk_assign_perm_from_origins(perm, origins_for_type)
+        assigned_perms.extend(perms)
+    return assigned_perms
+
+
+def assign_perm(perm, user_or_group, obj=None, origin=None):
     """
     Assigns permission to user/group and object pair.
 
@@ -86,15 +124,7 @@ def assign_perm(perm, user_or_group, obj=None):
     user, group = get_identity(user_or_group)
     # If obj is None we try to operate on global permissions
     if obj is None:
-        if not isinstance(perm, Permission):
-            try:
-                app_label, codename = perm.split('.', 1)
-            except ValueError:
-                raise ValueError("For global permissions, first argument must be in"
-                                 " format: 'app_label.codename' (is %r)" % perm)
-            perm = Permission.objects.get(content_type__app_label=app_label,
-                                          codename=codename)
-
+        perm = to_permission(perm)
         if user:
             user.user_permissions.add(perm)
             return perm
@@ -112,11 +142,11 @@ def assign_perm(perm, user_or_group, obj=None):
         if user:
             model = get_user_obj_perms_model(
                     obj[0] if isinstance(obj, list) else obj.model)
-            return model.objects.bulk_assign_perm(perm, user, obj)
+            return model.objects.bulk_assign_perm(perm, user, obj, origin=origin)
         if group:
             model = get_group_obj_perms_model(
                     obj[0] if isinstance(obj, list) else obj.model)
-            return model.objects.bulk_assign_perm(perm, group, obj)
+            return model.objects.bulk_assign_perm(perm, group, obj, origin=origin)
 
     if isinstance(user_or_group, (QuerySet, list)):
         if user:
@@ -128,11 +158,11 @@ def assign_perm(perm, user_or_group, obj=None):
 
     if user:
         model = get_user_obj_perms_model(obj)
-        return model.objects.assign_perm(perm, user, obj)
+        return model.objects.assign_perm(perm, user, obj, origin=origin)
 
     if group:
         model = get_group_obj_perms_model(obj)
-        return model.objects.assign_perm(perm, group, obj)
+        return model.objects.assign_perm(perm, group, obj, origin=origin)
 
 
 def assign(perm, user_or_group, obj=None):

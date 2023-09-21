@@ -8,7 +8,8 @@ from .models import (
     GroupObjectPermissionAbstract,
     GroupObjectPermission,
     Permission,
-    Group
+    Group,
+    Origin
 )
 
 
@@ -22,5 +23,6 @@ __all__ = [
     'Permission',
     'Group',
     'UserObjectPermission',
-    'GroupObjectPermission'
+    'GroupObjectPermission',
+    'Origin'
 ]

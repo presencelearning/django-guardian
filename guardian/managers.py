@@ -1,6 +1,9 @@
 from django.core.exceptions import FieldDoesNotExist
+from django.db import IntegrityError
 from django.db import models
+from django.db import transaction
 from django.db.models import Q
+from django.db.models import QuerySet
 from guardian.core import ObjectPermissionChecker
 from guardian.ctypes import get_content_type
 from guardian.exceptions import ObjectNotPersisted
@@ -26,7 +29,23 @@ class BaseObjectPermissionManager(models.Manager):
         except FieldDoesNotExist:
             return False
 
-    def assign_perm(self, perm, user_or_group, obj):
+    def _perm_kwargs(self, permission, user_or_group, obj, ctype=None, origin=None):
+        if ctype is None:
+            ctype = get_content_type(obj)
+        kwargs = {
+            'permission': permission,
+            self.user_or_group_field: user_or_group,
+        }
+        if self.is_generic():
+            kwargs['content_type'] = ctype
+            kwargs['object_pk'] = obj.pk
+        else:
+            kwargs['content_object'] = obj
+
+        kwargs['origin'] = origin
+        return kwargs
+
+    def assign_perm(self, perm, user_or_group, obj, origin=None):
         """
         Assigns permission with given ``perm`` for an instance ``obj`` and
         ``user``.
@@ -40,16 +59,18 @@ class BaseObjectPermissionManager(models.Manager):
         else:
             permission = perm
 
-        kwargs = {'permission': permission, self.user_or_group_field: user_or_group}
-        if self.is_generic():
-            kwargs['content_type'] = ctype
-            kwargs['object_pk'] = obj.pk
-        else:
-            kwargs['content_object'] = obj
-        obj_perm, _ = self.get_or_create(**kwargs)
+        kwargs = self._perm_kwargs(permission, user_or_group, obj, ctype, origin)
+        # Note that a get or create will fail with more than one result if origin is not present and multiple objects with an origin exist, however if origin is present and None, then it will also fail because None is not an origin. So we check in 2 steps.
+        obj_perm = self.filter(**kwargs).first()
+        if not obj_perm:
+            obj_perm = self.create(**kwargs)
+
         return obj_perm
 
-    def bulk_assign_perm(self, perm, user_or_group, queryset):
+    def assign_perm_from_origin(self, perm, origin):
+        return self.assign_perm(perm, origin.user, origin.content_object, origin)
+
+    def bulk_assign_perm(self, perm, user_or_group, queryset, origin=None):
         """
         Bulk assigns permissions with given ``perm`` for an objects in ``queryset`` and
         ``user_or_group``.
@@ -70,14 +91,39 @@ class BaseObjectPermissionManager(models.Manager):
         assigned_perms = []
         for instance in queryset:
             if not checker.has_perm(permission.codename, instance):
-                kwargs = {'permission': permission, self.user_or_group_field: user_or_group}
-                if self.is_generic():
-                    kwargs['content_type'] = ctype
-                    kwargs['object_pk'] = instance.pk
-                else:
-                    kwargs['content_object'] = instance
+                kwargs = self._perm_kwargs(permission, user_or_group, instance, ctype, origin)
                 assigned_perms.append(self.model(**kwargs))
         self.model.objects.bulk_create(assigned_perms)
+
+        return assigned_perms
+
+    def bulk_assign_perm_from_origins(self, perm, origins):
+        """
+        Bulk assigns permissions with given ``perm`` for the user and content_object in origins.
+        The content_objects must be of the same type.
+        """
+        if len(origins) == 0:
+            return []
+
+        if isinstance(origins, QuerySet):
+            origins = origins.select_related('content_object')
+
+        ctype = get_content_type(origins[0].content_object)
+
+        if not isinstance(perm, Permission):
+            permission = Permission.objects.get(content_type=ctype, codename=perm)
+        else:
+            permission = perm
+
+        assigned_perms = []
+        for o in origins:
+            try:
+                with transaction.atomic():
+                    kwargs = self._perm_kwargs(permission, o.user, o.content_object, ctype, o)
+                    instance = self.create(**kwargs)
+                    assigned_perms.append(instance)
+            except IntegrityError:
+                pass
 
         return assigned_perms
 
